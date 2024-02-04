@@ -50,6 +50,7 @@ async fn main() {
     println!("{:?}", items.get(0));
     let search_engine = Arc::new(SearchEngine::default());
 
+    search_engine.reset_index().await;
     SearchEngine::start(search_engine.clone()).await;
 
     let db_connection_str = std::env::var("DATABASE_URL")
@@ -100,8 +101,7 @@ async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
         user,
         status
         )
-    VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?,?)
-    RETURNING ID
+    VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?)
             "#,
                 title,
                 item.description,
@@ -123,7 +123,7 @@ async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
             tracing::info!("{id}");
 
             let db_item = DbItem {
-                id: Some(1),
+                id: Some(id),
                 title: item.title,
                 description: item.description,
                 category: item.category,

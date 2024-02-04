@@ -11,7 +11,7 @@ pub struct Point {
 }
 #[derive(Default, Debug, Deserialize, Serialize)]
 pub struct DbItem {
-    pub id: Option<i32>,
+    pub id: Option<u64>,
     pub title: Option<String>,
     pub description: Option<String>,
     pub price_type: Option<String>,

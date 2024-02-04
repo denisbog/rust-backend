@@ -485,7 +485,6 @@ impl openapi::Api for ServerImpl {
         status
         )
     VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?, ?)
-    returning id
             "#,
                 body.name,
                 body.title,
