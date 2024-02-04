@@ -312,27 +312,24 @@ paths:
             application/json:
               schema:
                 type: string
-  /seach:
+  /search:
     get:
       security:
         - cookieAuth: []
       parameters:
-        text:
-          name: id
-          in: query 
+        - name: text
+          in: query
           required: true
           schema:
             type: string
-        category:
-          name: id
-          in: query 
-          required: true
+        - name: category
+          in: query
+          required: false
           schema:
             type: string
-        subcategory:
-          name: id
-          in: query 
-          required: true
+        - name: subcategory
+          in: query
+          required: false
           schema:
             type: string
       responses:

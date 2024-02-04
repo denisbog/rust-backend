@@ -203,6 +203,15 @@ pub enum ReservationsPutResponse {
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
+pub enum SearchGetResponse {
+    /// 200 response
+    Status200
+    (models::Items)
+}
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
 pub enum UsersGetResponse {
     /// 200 response
     Status200
@@ -432,6 +441,16 @@ pub trait Api {
                 cookies: CookieJar,
                         body: models::Reservation,
                 ) -> Result<ReservationsPutResponse, String>;
+
+
+                /// SearchGet - GET /api/search
+                async fn search_get(
+                &self,
+                method: Method,
+                host: Host,
+                cookies: CookieJar,
+                  query_params: models::SearchGetQueryParams,
+                ) -> Result<SearchGetResponse, String>;
 
 
                 /// UsersGet - GET /api/users

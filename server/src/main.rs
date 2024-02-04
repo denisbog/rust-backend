@@ -6,13 +6,16 @@ use axum_server::tls_rustls::RustlsConfig;
 use bytes::Bytes;
 use common::DbItem;
 use common::Point;
+use futures::FutureExt;
 use http::Method;
+use index::search::SearchEngine;
 use oauth2::TokenResponse;
 use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
     ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
 use openapi::models::{self, ItemPlace, User};
+use openapi::SearchGetResponse;
 use openapi::{models::Item, server, ItemsIdContentPutResponse};
 use openapi::{
     AuthorizedGetResponse, ItemsGetResponse, ItemsIdContentGetResponse, ItemsIdDeleteResponse,
@@ -33,6 +36,7 @@ struct ServerImpl {
     store: MemoryStore,
     oauth_client: BasicClient,
     pool: MySqlPool,
+    search_engine: Arc<SearchEngine>,
 }
 
 impl ServerImpl {
@@ -387,7 +391,7 @@ impl openapi::Api for ServerImpl {
                 recs.into_iter()
                     .map(|rec| {
                         let mut item = Item::new();
-                        item.id = rec.id;
+                        item.id = Some(rec.id.unwrap().to_string());
                         item.name = rec.title;
                         item.title = rec.description;
 
@@ -535,6 +539,90 @@ impl openapi::Api for ServerImpl {
             })
         }
     }
+
+    #[doc = r" SearchGet - GET /api/search"]
+    #[must_use]
+    #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
+    async fn search_get(
+        &self,
+        method: Method,
+        host: Host,
+        cookies: CookieJar,
+        query_params: models::SearchGetQueryParams,
+    ) -> Result<SearchGetResponse, String> {
+        let search_result = self.search_engine.search(&query_params.text, 100, 0);
+
+        tracing::info!("index results {:?}", search_result.items);
+        let out = futures::future::join_all(search_result.items.iter().map(|id| async move {
+            sqlx::query_as!(
+                DbItem,
+                r#"
+    SELECT
+        id,
+        title,
+        description,
+        created,
+        updated,
+        price_type,
+        price,
+        location "location: Point",
+        place_description,
+        category,
+        subcategory,
+        user,
+        reserved,
+        status
+    FROM
+        items where id = ?
+    order by id desc
+            "#,
+                id
+            )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap()
+        }))
+        .await;
+        Ok(openapi::SearchGetResponse::Status200(
+            openapi::models::Items::new(
+                out.iter()
+                    .flatten()
+                    .map(|rec| {
+                        let mut item = Item::new();
+                        item.id = Some(rec.id.unwrap().to_string());
+                        item.name = rec.title.clone();
+                        item.title = rec.description.clone();
+
+                        if let Some(native_date_time) = rec.created {
+                            item.created = Some(native_date_time.and_utc());
+                        }
+                        if let Some(native_date_time) = rec.updated {
+                            item.updated = Some(native_date_time.and_utc());
+                        }
+
+                        item.price_type = rec.price_type.clone();
+                        item.price = rec.price;
+
+                        if let Some(coordinates) = &rec.location {
+                            item.place = Some(ItemPlace {
+                                lat: Some(coordinates.lat),
+                                lng: Some(coordinates.lng),
+                                description: rec.place_description.clone(),
+                            })
+                        }
+                        item.category = rec.category.clone();
+                        item.subcategory = rec.subcategory.clone();
+
+                        item.user = rec.user.clone();
+                        item.reserved = rec.reserved.clone();
+
+                        item.status = rec.status.clone();
+                        item
+                    })
+                    .collect(),
+            ),
+        ))
+    }
 }
 
 #[tokio::main]
@@ -545,11 +633,17 @@ async fn main() {
         .unwrap_or_else(|_| "mariadb://root:my-secret-pw@localhost/items".to_string());
     let pool = MySqlPool::connect(&db_connection_str).await.unwrap();
 
-    let app = server::new(Arc::new(ServerImpl {
+    let search_engine = Arc::new(SearchEngine::default());
+    SearchEngine::start(search_engine.clone()).await;
+
+    let var_name = ServerImpl {
         store: MemoryStore::new(),
         oauth_client: oauth_client().unwrap(),
         pool,
-    }));
+        search_engine,
+    };
+
+    let app = server::new(Arc::new(var_name));
     let config = RustlsConfig::from_pem_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("domain.crt"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("domain.key"),

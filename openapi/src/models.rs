@@ -145,6 +145,20 @@ use crate::{models, types::*};
       
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
     #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
+    pub struct SearchGetQueryParams {
+                #[serde(rename = "text")]
+                pub text: String,
+                #[serde(rename = "category")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub category: Option<String>,
+                #[serde(rename = "subcategory")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub subcategory: Option<String>,
+    }
+
+      
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
     pub struct UsersGetQueryParams {
                 #[serde(rename = "LastEvaluatedKey")]
                 #[serde(skip_serializing_if="Option::is_none")]
@@ -185,7 +199,7 @@ use crate::{models, types::*};
 pub struct Item {
     #[serde(rename = "id")]
     #[serde(skip_serializing_if="Option::is_none")]
-    pub id: Option<i32>,
+    pub id: Option<String>,
 
     #[serde(rename = "title")]
     #[serde(skip_serializing_if="Option::is_none")]
@@ -381,7 +395,7 @@ impl std::str::FromStr for Item {
         #[derive(Default)]
         #[allow(dead_code)]
         struct IntermediateRep {
-            pub id: Vec<i32>,
+            pub id: Vec<String>,
             pub title: Vec<String>,
             pub created: Vec<chrono::DateTime::<chrono::Utc>>,
             pub updated: Vec<chrono::DateTime::<chrono::Utc>>,
@@ -413,7 +427,7 @@ impl std::str::FromStr for Item {
                 #[allow(clippy::match_single_binding)]
                 match key {
                     #[allow(clippy::redundant_clone)]
-                    "id" => intermediate_rep.id.push(<i32 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "id" => intermediate_rep.id.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "title" => intermediate_rep.title.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]

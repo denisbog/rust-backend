@@ -41,11 +41,5 @@ tracing = { version = "0.1", features = ["attributes"] }
 uuid = { version = "1", features = ["serde"] }
 validator = { version = "0.16", features = ["derive"] }
 
-async-session = "3"
-oauth2 = "4"
-anyhow = "1"
-reqwest = { version = "0", features = ["json"] }
-axum-server = { version = "0.6", features = ["tls-rustls"] }
-sqlx = { version = "0.7", features = ["runtime-tokio", "mysql", "chrono"] }
-byteorder = "1.5.0"
+[dev-dependencies]
 tracing-subscriber = "0.3"

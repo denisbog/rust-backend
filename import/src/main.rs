@@ -48,9 +48,9 @@ async fn main() {
     let datetime = DateTime::parse_from_rfc3339("2022-08-26T08:13:03.118623+00:00").unwrap();
     println!("{:?}", datetime.naive_local());
     println!("{:?}", items.get(0));
-    let seach_engine = Arc::new(SearchEngine::default());
+    let search_engine = Arc::new(SearchEngine::default());
 
-    SearchEngine::start(seach_engine.clone()).await;
+    SearchEngine::start(search_engine.clone()).await;
 
     let db_connection_str = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "mariadb://root:my-secret-pw@localhost/items".to_string());
@@ -75,10 +75,10 @@ async fn main() {
         //     updated: None,
         //     user: Some("genered".into()),
         // };
-        store(&pool, &seach_engine, item).await;
+        store(&pool, &search_engine, item).await;
     }))
     .await;
-    seach_engine.commit().await;
+    search_engine.commit().await;
 }
 
 async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
@@ -123,7 +123,7 @@ async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
             tracing::info!("{id}");
 
             let db_item = DbItem {
-                id: Some(item.id),
+                id: Some(1),
                 title: item.title,
                 description: item.description,
                 category: item.category,

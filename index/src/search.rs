@@ -105,7 +105,7 @@ impl SearchEngine {
     }
     pub async fn index(self: &Self, item: &DbItem) {
         let id = item.id.as_ref().unwrap();
-        self.delete(&id).await;
+        self.delete(*id).await;
 
         let schema = self.index.schema();
         let mut document = tantivy::Document::new();
@@ -131,9 +131,9 @@ impl SearchEngine {
         self.dirty().await;
     }
 
-    pub async fn delete(self: &Self, id: &String) {
+    pub async fn delete(self: &Self, id: i32) {
         let schema = self.index.schema();
-        let term = Term::from_field_text(schema.get_field("id").unwrap(), &id);
+        let term = Term::from_field_i64(schema.get_field("id").unwrap(), id.into());
 
         let index_writer = self.index_writer.read().await;
         index_writer.delete_term(term);

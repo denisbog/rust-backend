@@ -32,6 +32,7 @@ use crate::{Api,
      ReservationsIdPostResponse,
      ReservationsIdReturnPostResponse,
      ReservationsPutResponse,
+     SearchGetResponse,
      UsersGetResponse,
      UsersIdDeleteResponse,
      UsersIdGetResponse,
@@ -81,6 +82,9 @@ where
         )
         .route("/api/reservations/:id/return",
             post(reservations_id_return_post::<I, A>)
+        )
+        .route("/api/search",
+            get(search_get::<I, A>)
         )
         .route("/api/users",
             get(users_get::<I, A>)
@@ -1783,6 +1787,92 @@ where
   let resp = match result {
                                             Ok(rsp) => match rsp {
                                                 ReservationsPutResponse::Status200
+                                                    (body)
+                                                => {
+
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_str("application/json").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(_) => {
+                                                // Application code returned an error. This should not happen, as the implementation should
+                                                // return a valid response.
+                                                response.status(500).body(Body::empty())
+                                            },
+                                        };
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+
+#[tracing::instrument(skip_all)]
+fn search_get_validation(
+  query_params: models::SearchGetQueryParams,
+) -> std::result::Result<(
+  models::SearchGetQueryParams,
+), ValidationErrors>
+{
+  query_params.validate()?;
+
+Ok((
+  query_params,
+))
+}
+
+/// SearchGet - GET /api/search
+#[tracing::instrument(skip_all)]
+async fn search_get<I, A>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+  Query(query_params): Query<models::SearchGetQueryParams>,
+ State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where 
+    I: AsRef<A> + Send + Sync,
+    A: Api,
+{
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move || 
+    search_get_validation(
+        query_params,
+    )
+  ).await.unwrap();
+
+  let Ok((
+    query_params,
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST); 
+  };
+
+  let result = api_impl.as_ref().search_get(
+      method,
+      host,
+      cookies,
+        query_params,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                SearchGetResponse::Status200
                                                     (body)
                                                 => {
 
