@@ -56,6 +56,12 @@ async fn main() {
     let db_connection_str = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "mariadb://root:my-secret-pw@localhost/items".to_string());
     let pool = MySqlPool::connect(&db_connection_str).await.unwrap();
+
+    sqlx::query!("delete from items")
+        .execute(&pool)
+        .await
+        .unwrap();
+
     futures::future::join_all(items.into_iter().map(|item| async {
         // DbItem {
         //     id: Some(item.id),
@@ -120,7 +126,7 @@ async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
             .unwrap()
             .last_insert_id();
 
-            tracing::info!("{id}");
+            tracing::info!("{id} {title}");
 
             let db_item = DbItem {
                 id: Some(id),

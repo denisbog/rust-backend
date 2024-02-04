@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::time::Duration;
+use std::u64;
 
 use crate::setup::get_index;
 use common::DbItem;
@@ -17,7 +18,7 @@ pub struct SearchEngine {
 }
 
 pub struct SearchResults {
-    pub items: Vec<String>,
+    pub items: Vec<u64>,
     pub count: i32,
 }
 
@@ -85,32 +86,27 @@ impl SearchEngine {
         let items = query_results
             .iter()
             .map(|(_score, doc_address)| {
-                let mut temp = String::new();
-
                 let out = searcher
                     .segment_reader(doc_address.segment_ord)
                     .fast_fields()
-                    .str("id")
-                    .unwrap()
+                    .u64("id")
                     .unwrap();
-                out.ord_to_str(doc_address.doc_id.into(), &mut temp)
-                    .unwrap();
-                temp
+                out.first(doc_address.doc_id).unwrap()
             })
-            .collect::<Vec<String>>();
+            .collect::<Vec<u64>>();
         SearchResults {
             items,
             count: i32::try_from(count).unwrap(),
         }
     }
     pub async fn index(self: &Self, item: &DbItem) {
-        let id = item.id.as_ref().unwrap();
-        self.delete(*id).await;
+        let id = item.id.unwrap();
+        self.delete(id).await;
 
         let schema = self.index.schema();
         let mut document = tantivy::Document::new();
 
-        document.add_text(schema.get_field("id").unwrap(), &id);
+        document.add_u64(schema.get_field("id").unwrap(), id);
         // add_text!(document, schema => item, title);
 
         if let Some(title) = &item.title {

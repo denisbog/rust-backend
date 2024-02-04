@@ -550,8 +550,6 @@ impl openapi::Api for ServerImpl {
         query_params: models::SearchGetQueryParams,
     ) -> Result<SearchGetResponse, String> {
         let search_result = self.search_engine.search(&query_params.text, 100, 0);
-
-        tracing::info!("index results {:?}", search_result.items);
         let out = futures::future::join_all(search_result.items.iter().map(|id| async move {
             sqlx::query_as!(
                 DbItem,

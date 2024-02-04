@@ -1,0 +1,25 @@
+{
+  "db_name": "MySQL",
+  "query": "\n    SELECT subcategory\n    FROM items\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "subcategory",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "char_set": 224,
+          "max_size": 128
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9aacfb023e7e1f4fed9ea66f7e94b71c7c2f4d7e773b5db94c329860190681f1"
+}
