@@ -19,6 +19,7 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = { version = "0.1", features = ["attributes"] }
 
 openapi = { path = "../openapi" }
+common = { path = "../common" }
 async-session = "3"
 oauth2 = "4"
 anyhow = "1"

@@ -3,9 +3,9 @@ use async_trait::async_trait;
 use axum::extract::Host;
 use axum_extra::extract::CookieJar;
 use axum_server::tls_rustls::RustlsConfig;
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use bytes::Bytes;
-use chrono::NaiveDateTime;
+use common::DbItem;
+use common::Point;
 use http::Method;
 use oauth2::TokenResponse;
 use oauth2::{
@@ -23,14 +23,11 @@ use openapi::{
     ReservationsIdReturnPostResponse, ReservationsPutResponse, UsersGetResponse,
     UsersIdDeleteResponse, UsersIdGetResponse, UsersIdPostResponse,
 };
-use sqlx::error::BoxDynError;
-use sqlx::mysql::MySqlValueRef;
+use sqlx::MySqlPool;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, sync::Arc};
-
-use sqlx::{Decode, Error, MySql, MySqlPool};
 use tokio::signal;
 struct ServerImpl {
     store: MemoryStore,
@@ -54,46 +51,6 @@ impl ServerImpl {
             None
         }
     }
-}
-
-struct Point {
-    x: f64,
-    y: f64,
-}
-
-// use wkb::*;
-impl<'r> Decode<'r, MySql> for Point {
-    fn decode(value: MySqlValueRef<'r>) -> Result<Self, BoxDynError> {
-        let bytes = <&[u8] as Decode<MySql>>::decode(value).unwrap();
-        let mut cursor = std::io::Cursor::new(bytes);
-        let _ = cursor.read_u32::<BigEndian>();
-        match cursor.read_u8() {
-            Ok(1) => {
-                let _ = cursor.read_u32::<LittleEndian>();
-                Ok(Point {
-                    x: cursor.read_f64::<LittleEndian>().unwrap(),
-                    y: cursor.read_f64::<LittleEndian>().unwrap(),
-                })
-            }
-            _ => Err(Error::Protocol("failed to read point from database".into()).into()),
-        }
-    }
-}
-struct DbItem {
-    id: Option<i32>,
-    name: Option<String>,
-    title: Option<String>,
-    price_type: Option<String>,
-    price: Option<f64>,
-    location: Option<Point>,
-    place_description: Option<String>,
-    category: Option<String>,
-    subcategory: Option<String>,
-    user: Option<String>,
-    reserved: Option<String>,
-    status: Option<String>,
-    created: Option<NaiveDateTime>,
-    updated: Option<NaiveDateTime>,
 }
 
 #[allow(unused_variables)]
@@ -403,8 +360,8 @@ impl openapi::Api for ServerImpl {
             r#"
     SELECT
         id,
-        name,
         title,
+        description,
         created,
         updated,
         price_type,
@@ -431,8 +388,8 @@ impl openapi::Api for ServerImpl {
                     .map(|rec| {
                         let mut item = Item::new();
                         item.id = rec.id;
-                        item.name = rec.name;
-                        item.title = rec.title;
+                        item.name = rec.title;
+                        item.title = rec.description;
 
                         if let Some(native_date_time) = rec.created {
                             item.created = Some(native_date_time.and_utc());
@@ -511,8 +468,8 @@ impl openapi::Api for ServerImpl {
             let item_id = sqlx::query_scalar!(
                 r#"
     INSERT INTO items(
-        name,
         title,
+        description,
         price_type,
         price,
         location,

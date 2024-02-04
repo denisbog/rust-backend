@@ -3,16 +3,16 @@
 CREATE TABLE IF NOT EXISTS items 
 (
     id INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
-    name VARCHAR(32) NOT NULL,
-    title VARCHAR(128) NOT NULL,
+    title VARCHAR(256) NOT NULL,
+    description VARCHAR(1024) NOT NULL,
     created DATETIME NOT NULL default current_timestamp,
     updated DATETIME NOT NULL default current_timestamp on update current_timestamp,
     price_type VARCHAR(16) NOT NULL,
     price DOUBLE NOT NULL,
     location POINT NOT NULL,
-    place_description VARCHAR(128) NOT NULL,
-    category VARCHAR(16) NOT NULL,
-    subcategory VARCHAR(16) NOT NULL,
+    place_description VARCHAR(256),
+    category VARCHAR(32) NOT nULL,
+    subcategory VARCHAR(32) NOT NULL,
     user VARCHAR(16) NOT NULL,
     reserved VARCHAR(16),
     status VARCHAR(16) NOT NULL
