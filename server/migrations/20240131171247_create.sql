@@ -11,11 +11,11 @@ CREATE TABLE IF NOT EXISTS items
     price DOUBLE NOT NULL,
     location POINT NOT NULL,
     place_description VARCHAR(256),
-    category VARCHAR(32) NOT nULL,
+    category VARCHAR(32) NOT NULL,
     subcategory VARCHAR(32) NOT NULL,
     user VARCHAR(16) NOT NULL,
     reserved VARCHAR(16),
-    status VARCHAR(16) NOT NULL
+    status VARCHAR(16)
 );
 
 CREATE TABLE IF NOT EXISTS users

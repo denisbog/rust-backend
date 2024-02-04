@@ -403,8 +403,8 @@ impl openapi::Api for ServerImpl {
 
                         if let Some(coordinates) = rec.location {
                             item.place = Some(ItemPlace {
-                                lat: Some(coordinates.x),
-                                lng: Some(coordinates.y),
+                                lat: Some(coordinates.lat),
+                                lng: Some(coordinates.lng),
                                 description: rec.place_description,
                             })
                         }
@@ -560,7 +560,7 @@ async fn main() {
     tracing::debug!("listening on {}", addr);
 
     let handle = axum_server::Handle::new();
-    let shutdown_future = shutdown_signal(handle.clone());
+    let _shutdown_future = shutdown_signal(handle.clone());
     // tokio::spawn(redirect_http_to_https(shutdown_future));
 
     axum_server::bind_rustls(addr, config)
