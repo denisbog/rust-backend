@@ -392,8 +392,8 @@ impl openapi::Api for ServerImpl {
                     .map(|rec| {
                         let mut item = Item::new();
                         item.id = Some(rec.id.unwrap().to_string());
-                        item.name = rec.title;
-                        item.title = rec.description;
+                        item.title = rec.title;
+                        item.description = rec.description;
 
                         if let Some(native_date_time) = rec.created {
                             item.created = Some(native_date_time.and_utc());
@@ -486,8 +486,8 @@ impl openapi::Api for ServerImpl {
         )
     VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?, ?)
             "#,
-                body.name,
                 body.title,
+                body.description,
                 body.price_type,
                 body.price,
                 place.lat,
@@ -549,7 +549,7 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         query_params: models::SearchGetQueryParams,
     ) -> Result<SearchGetResponse, String> {
-        let search_result = self.search_engine.search(&query_params.text, 100, 0);
+        let search_result = self.search_engine.search(&query_params.text, 20, 0);
         let out = futures::future::join_all(search_result.items.iter().map(|id| async move {
             sqlx::query_as!(
                 DbItem,
@@ -587,8 +587,8 @@ impl openapi::Api for ServerImpl {
                     .map(|rec| {
                         let mut item = Item::new();
                         item.id = Some(rec.id.unwrap().to_string());
-                        item.name = rec.title.clone();
-                        item.title = rec.description.clone();
+                        item.title = rec.title.clone();
+                        item.description = rec.description.clone();
 
                         if let Some(native_date_time) = rec.created {
                             item.created = Some(native_date_time.and_utc());

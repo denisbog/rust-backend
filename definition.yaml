@@ -405,14 +405,14 @@ components:
           type: string
         title:
           type: string
+        description:
+          type: string
         created:
           type: string
           format: date-time
         updated:
           type: string
           format: date-time
-        name:
-          type: string
         priceType:
           type: string
         price:

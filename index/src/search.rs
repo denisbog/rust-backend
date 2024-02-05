@@ -42,12 +42,20 @@ impl Default for SearchEngine {
             .try_into()
             .unwrap();
 
-        let query_parser = QueryParser::for_index(
+        let mut query_parser = QueryParser::for_index(
             &index,
             vec![
                 index.schema().get_field("title").unwrap(),
                 index.schema().get_field("description").unwrap(),
             ],
+        );
+
+        query_parser.set_field_fuzzy(index.schema().get_field("title").unwrap(), true, 1, false);
+        query_parser.set_field_fuzzy(
+            index.schema().get_field("description").unwrap(),
+            true,
+            1,
+            false,
         );
 
         let index_writer = index.writer(20_000_000).unwrap();
