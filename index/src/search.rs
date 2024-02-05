@@ -107,7 +107,7 @@ impl SearchEngine {
             count: i32::try_from(count).unwrap(),
         }
     }
-    pub async fn index(self: &Self, item: &DbItem) {
+    pub async fn index(&self, item: &DbItem) {
         let id = item.id.unwrap();
         self.delete(id).await;
 
@@ -135,7 +135,7 @@ impl SearchEngine {
         self.dirty().await;
     }
 
-    pub async fn delete(self: &Self, id: u64) {
+    pub async fn delete(&self, id: u64) {
         let schema = self.index.schema();
         let term = Term::from_field_u64(schema.get_field("id").unwrap(), id);
 
@@ -144,22 +144,22 @@ impl SearchEngine {
         self.dirty().await;
     }
 
-    async fn dirty(self: &Self) {
+    async fn dirty(&self) {
         *self.dirty_operations.lock().await += 1;
     }
 
-    pub async fn commit(self: &Self) {
+    pub async fn commit(&self) {
         self.index_writer.write().await.commit().unwrap();
         tracing::info!("commit");
     }
 
-    pub async fn reset_index(self: &Self) {
+    pub async fn reset_index(&self) {
         let mut writer = self.index_writer.write().await;
         writer.delete_all_documents().unwrap();
         writer.commit().unwrap();
     }
 
-    async fn monitor_commit(self: &Self) {
+    async fn monitor_commit(&self) {
         if *self.dirty_operations.lock().await > 0 {
             self.index_writer.write().await.commit().unwrap();
             tracing::info!("commit");

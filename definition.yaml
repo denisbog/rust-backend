@@ -48,6 +48,36 @@ paths:
       description: Returns a list of users.
       parameters:
         - $ref : "#/components/parameters/LastEvaluatedKey"
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: subcategory
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: lat 
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: long 
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: r
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: "200 response"

@@ -47,7 +47,7 @@ async fn main() {
     .collect();
     let datetime = DateTime::parse_from_rfc3339("2022-08-26T08:13:03.118623+00:00").unwrap();
     println!("{:?}", datetime.naive_local());
-    println!("{:?}", items.get(0));
+    println!("{:?}", items.first());
     let search_engine = Arc::new(SearchEngine::default());
 
     search_engine.reset_index().await;
