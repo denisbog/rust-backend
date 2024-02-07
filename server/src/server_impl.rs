@@ -3,6 +3,11 @@ use async_trait::async_trait;
 use axum::extract::Host;
 use axum_extra::extract::CookieJar;
 use http::Method;
+use openapi::models::ItemPlace;
+use sqlx::query;
+use sqlx::Execute;
+use sqlx::MySql;
+use sqlx::QueryBuilder;
 
 use crate::ServerImpl;
 use anyhow::Context;
@@ -12,7 +17,7 @@ use common::DbItem;
 use common::Point;
 use oauth2::TokenResponse;
 use oauth2::{reqwest::async_http_client, AuthorizationCode, CsrfToken, Scope};
-use openapi::models::{self, ItemPlace, User};
+use openapi::models::{self, User};
 use openapi::SearchGetResponse;
 use openapi::{models::Item, ItemsIdContentPutResponse};
 use openapi::{
@@ -327,9 +332,7 @@ impl openapi::Api for ServerImpl {
             self.get_session_user_id(&cookies).await;
         }
 
-        let recs = sqlx::query_as!(
-            DbItem,
-            r#"
+        let query = r#"
     SELECT
         id,
         title,
@@ -338,7 +341,7 @@ impl openapi::Api for ServerImpl {
         updated,
         price_type,
         price,
-        location "location: Point",
+        location,
         place_description,
         category,
         subcategory,
@@ -347,17 +350,33 @@ impl openapi::Api for ServerImpl {
         status
     FROM 
         items
-    ORDER BY id desc
-            "#
-        )
-        .fetch_all(&self.pool)
-        .await
-        .unwrap();
+    WHERE"#;
 
+        let mut builder = QueryBuilder::<MySql>::new(query);
+
+        if let Some(ref category) = query_params.category {
+            builder.push(" category = ");
+            builder.push_bind(category);
+            if let Some(ref subcategory) = query_params.subcategory {
+                builder.push(" and subcategory in (");
+                let mut separated = builder.separated(',');
+                subcategory.split(',').into_iter().for_each(|subcategory| {
+                    separated.push_bind(subcategory);
+                });
+                separated.push_unseparated(')');
+            }
+        }
+
+        builder.push(" ORDER BY id DESC");
+        // println!("{}", builder.sql());
+        //
+        let execute_query = builder.build_query_as();
+        let recs = execute_query.fetch_all(&self.pool).await.unwrap();
+        // let recs = sqlx::query_as(&builder.into_sql());
         Ok(openapi::ItemsGetResponse::Status200(
             openapi::models::Items::new(
                 recs.into_iter()
-                    .map(|rec| {
+                    .map(|rec: DbItem| {
                         let mut item = Item::new();
                         item.id = Some(rec.id.unwrap().to_string());
                         item.title = rec.title;
@@ -568,13 +587,13 @@ impl openapi::Api for ServerImpl {
                         item.price_type = rec.price_type.clone();
                         item.price = rec.price;
 
-                        if let Some(coordinates) = &rec.location {
-                            item.place = Some(ItemPlace {
-                                lat: Some(coordinates.lat),
-                                lng: Some(coordinates.lng),
-                                description: rec.place_description.clone(),
-                            })
-                        }
+                        // if let Some(coordinates) = &rec.location {
+                        //     item.place = Some(ItemPlace {
+                        //         lat: Some(coordinates.lat),
+                        //         lng: Some(coordinates.lng),
+                        //         description: rec.place_description.clone(),
+                        //     })
+                        // }
                         item.category = rec.category.clone();
                         item.subcategory = rec.subcategory.clone();
 
