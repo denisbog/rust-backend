@@ -23,13 +23,13 @@ CREATE TABLE IF NOT EXISTS items
 
 CREATE TABLE IF NOT EXISTS users
 (
-    id VARCHAR(16) PRIMARY KEY NOT NULL,
-    name VARCHAR(32) NOT NULL, title VARCHAR(128)        NOT NULL,
-    email VARCHAR(128)        NOT NULL,
-    about VARCHAR(128)        NOT NULL,
-    avatar VARCHAR(128)        NOT NULL,
-    joined DATETIME        NOT NULL default current_timestamp,
-    last_login DATETIME        NOT NULL on update current_timestamp
+    id VARCHAR(32) PRIMARY KEY NOT NULL,
+    name VARCHAR(32) NOT NULL,
+    email VARCHAR(128) NOT NULL,
+    about VARCHAR(1024),
+    avatar VARCHAR(128),
+    joined DATETIME NOT NULL default current_timestamp,
+    last_login DATETIME NOT NULL default current_timestamp on update current_timestamp
 );
 
 CREATE TABLE IF NOT EXISTS reservations

@@ -5,7 +5,7 @@ use axum_extra::extract::CookieJar;
 use index::search::SearchEngine;
 use oauth2::basic::BasicClient;
 use openapi::models::User;
-use sqlx::MySqlPool;
+use sqlx::{query_builder, MySqlPool, QueryBuilder};
 
 mod server_impl;
 
@@ -29,6 +29,33 @@ impl ServerImpl {
             }
         } else {
             None
+        }
+    }
+
+    pub async fn check_and_import_user_if_required(&self, user: &User) {
+        let mut query_builder = QueryBuilder::new("SELECT name FROM users WHERE id =");
+        query_builder.push_bind(&user.id);
+        let query = query_builder.build();
+
+        if query.fetch_optional(&self.pool).await.unwrap().is_none() {
+            tracing::info!("inserting new user in the database {:?}", user);
+            sqlx::query!(
+                "insert into users (id, name, email) values (?, ?, ?)",
+                user.id,
+                user.name,
+                user.email
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap();
+        } else {
+            sqlx::query!(
+                "update users set last_login = current_time() where id = ?",
+                user.id
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap();
         }
     }
 }

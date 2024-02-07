@@ -468,6 +468,12 @@ components:
           type: string
         status:
           type: string
+        userName:
+          type: string
+        userEmail:
+          type: string
+        userAvatar:
+          type: string
     reservations:
       required:
       - "Items"

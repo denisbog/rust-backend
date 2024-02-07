@@ -94,3 +94,12 @@ impl<'r> Decode<'r, MySql> for Point {
         }
     }
 }
+
+#[derive(sqlx::FromRow)]
+pub struct DbUser {
+    pub name: Option<String>,
+    pub email: Option<String>,
+    pub avatar: Option<String>,
+    pub joined: Option<NaiveDateTime>,
+    pub last_login: Option<NaiveDateTime>,
+}

@@ -2,10 +2,12 @@ use async_trait::async_trait;
 
 use axum::extract::Host;
 use axum_extra::extract::CookieJar;
+use common::DbUser;
 use http::Method;
 use openapi::models::ItemPlace;
 use sqlx::query;
 use sqlx::Execute;
+use sqlx::FromRow;
 use sqlx::MySql;
 use sqlx::QueryBuilder;
 
@@ -309,6 +311,8 @@ impl openapi::Api for ServerImpl {
         let mut session = Session::new();
         session.insert("user", &user_data).unwrap();
 
+        self.check_and_import_user_if_required(&user_data).await;
+
         // Store session and get corresponding cookie
         let cookie = &self.store.store_session(session).await.unwrap().unwrap();
 
@@ -334,31 +338,42 @@ impl openapi::Api for ServerImpl {
 
         let query = r#"
     SELECT
-        id,
-        title,
-        description,
-        created,
-        updated,
-        price_type,
-        price,
-        location,
-        place_description,
-        category,
-        subcategory,
-        user,
-        reserved,
-        status
+        items.id,
+        items.title,
+        items.description,
+        items.created,
+        items.updated,
+        items.price_type,
+        items.price,
+        items.location,
+        items.place_description,
+        items.category,
+        items.subcategory,
+        items.user,
+        items.reserved,
+        items.status,
+        users.name,
+        users.email,
+        users.avatar,
+        users.joined,
+        users.last_login
     FROM 
         items
-    WHERE"#;
+    LEFT JOIN
+        users
+    ON
+        items.user = users.id"#;
 
         let mut builder = QueryBuilder::<MySql>::new(query);
 
         let mut append_condition = false;
 
         if let Some(ref category) = query_params.category {
+            if !append_condition {
+                builder.push(" WHERE");
+                append_condition = true;
+            }
             builder.push(" category = ");
-            append_condition = true;
             builder.push_bind(category);
             if let Some(ref subcategory) = query_params.subcategory {
                 builder.push(" and subcategory in (");
@@ -373,7 +388,10 @@ impl openapi::Api for ServerImpl {
         if let (Some(lat), Some(lng), Some(r)) =
             (query_params.lat, query_params.long, query_params.r)
         {
-            if append_condition {
+            if !append_condition {
+                builder.push(" WHERE");
+                // append_condition = true;
+            } else {
                 builder.push(" and");
             }
             builder.push(" ST_DISTANCE_SPHERE(location, POINT(");
@@ -387,13 +405,15 @@ impl openapi::Api for ServerImpl {
         builder.push(" ORDER BY id DESC");
         // println!("{}", builder.sql());
         //
-        let execute_query = builder.build_query_as();
+        let execute_query = builder.build();
         let recs = execute_query.fetch_all(&self.pool).await.unwrap();
         // let recs = sqlx::query_as(&builder.into_sql());
         Ok(openapi::ItemsGetResponse::Status200(
             openapi::models::Items::new(
                 recs.into_iter()
-                    .map(|rec: DbItem| {
+                    .map(|row| {
+                        let rec = DbItem::from_row(&row).unwrap();
+                        let user = DbUser::from_row(&row).unwrap();
                         let mut item = Item::new();
                         item.id = Some(rec.id.unwrap().to_string());
                         item.title = rec.title;
@@ -423,6 +443,11 @@ impl openapi::Api for ServerImpl {
                         item.reserved = rec.reserved;
 
                         item.status = rec.status;
+
+                        item.user_name = user.name;
+                        item.user_email = user.email;
+                        item.user_avatar = user.avatar;
+
                         item
                     })
                     .collect(),
@@ -604,13 +629,13 @@ impl openapi::Api for ServerImpl {
                         item.price_type = rec.price_type.clone();
                         item.price = rec.price;
 
-                        // if let Some(coordinates) = &rec.location {
-                        //     item.place = Some(ItemPlace {
-                        //         lat: Some(coordinates.lat),
-                        //         lng: Some(coordinates.lng),
-                        //         description: rec.place_description.clone(),
-                        //     })
-                        // }
+                        if let Some(coordinates) = &rec.location {
+                            item.place = Some(ItemPlace {
+                                lat: Some(coordinates.lat),
+                                lng: Some(coordinates.lng),
+                                description: rec.place_description.clone(),
+                            })
+                        }
                         item.category = rec.category.clone();
                         item.subcategory = rec.subcategory.clone();
 
