@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS items
     subcategory VARCHAR(32) NOT NULL,
     user VARCHAR(16) NOT NULL,
     reserved VARCHAR(16),
-    status VARCHAR(16)
+    status VARCHAR(16),
+
+    INDEX(category,subcategory),
+    SPATIAL INDEX(location)
 );
 
 CREATE TABLE IF NOT EXISTS users

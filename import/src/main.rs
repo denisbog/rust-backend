@@ -126,8 +126,6 @@ async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
             .unwrap()
             .last_insert_id();
 
-            tracing::info!("{id} {title}");
-
             let db_item = DbItem {
                 id: Some(id),
                 title: item.title,

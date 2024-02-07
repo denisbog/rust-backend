@@ -354,8 +354,11 @@ impl openapi::Api for ServerImpl {
 
         let mut builder = QueryBuilder::<MySql>::new(query);
 
+        let mut append_condition = false;
+
         if let Some(ref category) = query_params.category {
             builder.push(" category = ");
+            append_condition = true;
             builder.push_bind(category);
             if let Some(ref subcategory) = query_params.subcategory {
                 builder.push(" and subcategory in (");
@@ -365,6 +368,20 @@ impl openapi::Api for ServerImpl {
                 });
                 separated.push_unseparated(')');
             }
+        }
+
+        if let (Some(lat), Some(lng), Some(r)) =
+            (query_params.lat, query_params.long, query_params.r)
+        {
+            if append_condition {
+                builder.push(" and");
+            }
+            builder.push(" ST_DISTANCE_SPHERE(location, POINT(");
+            builder.push_bind(lat);
+            builder.push(", ");
+            builder.push_bind(lng);
+            builder.push(")) < ");
+            builder.push_bind(r);
         }
 
         builder.push(" ORDER BY id DESC");
