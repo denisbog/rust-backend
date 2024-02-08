@@ -78,6 +78,11 @@ paths:
           required: false
           schema:
             type: string
+        - name: lastEvaluatedKey
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: "200 response"

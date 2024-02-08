@@ -1,3 +1,5 @@
+use std::u64;
+
 use async_trait::async_trait;
 
 use axum::extract::Host;
@@ -5,8 +7,6 @@ use axum_extra::extract::CookieJar;
 use common::DbUser;
 use http::Method;
 use openapi::models::ItemPlace;
-use sqlx::query;
-use sqlx::Execute;
 use sqlx::FromRow;
 use sqlx::MySql;
 use sqlx::QueryBuilder;
@@ -31,6 +31,9 @@ use openapi::{
     ReservationsIdReturnPostResponse, ReservationsPutResponse, UsersGetResponse,
     UsersIdDeleteResponse, UsersIdGetResponse, UsersIdPostResponse,
 };
+
+use sqlx::Row;
+
 #[allow(unused_variables)]
 #[async_trait]
 impl openapi::Api for ServerImpl {
@@ -390,7 +393,7 @@ impl openapi::Api for ServerImpl {
         {
             if !append_condition {
                 builder.push(" WHERE");
-                // append_condition = true;
+                append_condition = true;
             } else {
                 builder.push(" and");
             }
@@ -402,15 +405,34 @@ impl openapi::Api for ServerImpl {
             builder.push_bind(r);
         }
 
+        if let Some(last_id) = query_params.last_evaluated_key {
+            if append_condition {
+                builder.push(" AND");
+            } else {
+                builder.push(" WHERE");
+            }
+            builder.push(" items.id <= ");
+            builder.push_bind(last_id);
+        }
         builder.push(" ORDER BY id DESC");
+        builder.push(" LIMIT 11");
         // println!("{}", builder.sql());
         //
         let execute_query = builder.build();
         let recs = execute_query.fetch_all(&self.pool).await.unwrap();
-        // let recs = sqlx::query_as(&builder.into_sql());
+
+        let last_evaluated_key: Option<String> = if recs.len() > 10 {
+            let last_id: Option<u64> = recs.last().unwrap().try_get("id").unwrap();
+            Some(last_id.unwrap().to_string())
+        } else {
+            None
+        };
+
         Ok(openapi::ItemsGetResponse::Status200(
-            openapi::models::Items::new(
-                recs.into_iter()
+            openapi::models::Items {
+                items: recs
+                    .into_iter()
+                    .take(10)
                     .map(|row| {
                         let rec = DbItem::from_row(&row).unwrap();
                         let user = DbUser::from_row(&row).unwrap();
@@ -451,7 +473,8 @@ impl openapi::Api for ServerImpl {
                         item
                     })
                     .collect(),
-            ),
+                last_evaluated_key,
+            },
         ))
     }
 
