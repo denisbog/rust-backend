@@ -7,6 +7,7 @@ use axum_extra::extract::CookieJar;
 use common::DbUser;
 use http::Method;
 use openapi::models::ItemPlace;
+use openapi::models::Users;
 use sqlx::FromRow;
 use sqlx::MySql;
 use sqlx::QueryBuilder;
@@ -238,7 +239,35 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         query_params: models::UsersGetQueryParams,
     ) -> Result<UsersGetResponse, String> {
-        todo!()
+        let db_users = sqlx::query_as!(DbUser, "select * from users")
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+
+        let users = db_users
+            .into_iter()
+            .map(|db_user| User {
+                id: db_user.id,
+                name: db_user.name,
+                about: db_user.about,
+                avatar: db_user.avatar,
+                email: db_user.email,
+                joined: if let Some(native_date_time) = db_user.joined {
+                    Some(native_date_time.and_utc())
+                } else {
+                    None
+                },
+                last_login: if let Some(native_date_time) = db_user.joined {
+                    Some(native_date_time.and_utc())
+                } else {
+                    None
+                },
+            })
+            .collect::<Vec<User>>();
+        Ok(UsersGetResponse::Status200(Users {
+            items: users,
+            last_evaluated_key: None,
+        }))
     }
 
     #[doc = r" UsersIdDelete - DELETE /api/users/{id}"]
@@ -264,7 +293,28 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::UsersIdGetPathParams,
     ) -> Result<UsersIdGetResponse, String> {
-        todo!()
+        let db_user = sqlx::query_as!(DbUser, "select * from users where id = ?", path_params.id)
+            .fetch_one(&self.pool)
+            .await
+            .unwrap();
+        let user = User {
+            id: db_user.id,
+            name: db_user.name,
+            about: db_user.about,
+            avatar: db_user.avatar,
+            email: db_user.email,
+            joined: if let Some(native_date_time) = db_user.joined {
+                Some(native_date_time.and_utc())
+            } else {
+                None
+            },
+            last_login: if let Some(native_date_time) = db_user.joined {
+                Some(native_date_time.and_utc())
+            } else {
+                None
+            },
+        };
+        Ok(UsersIdGetResponse::Status200(user))
     }
 
     #[doc = r" UsersIdPost - POST /api/users/{id}"]
@@ -417,7 +467,6 @@ impl openapi::Api for ServerImpl {
         builder.push(" ORDER BY id DESC");
         builder.push(" LIMIT 11");
         // println!("{}", builder.sql());
-        //
         let execute_query = builder.build();
         let recs = execute_query.fetch_all(&self.pool).await.unwrap();
 
@@ -435,7 +484,6 @@ impl openapi::Api for ServerImpl {
                     .take(10)
                     .map(|row| {
                         let rec = DbItem::from_row(&row).unwrap();
-                        let user = DbUser::from_row(&row).unwrap();
                         let mut item = Item::new();
                         item.id = Some(rec.id.unwrap().to_string());
                         item.title = rec.title;
@@ -464,11 +512,9 @@ impl openapi::Api for ServerImpl {
                         item.user = rec.user;
                         item.reserved = rec.reserved;
 
-                        item.status = rec.status;
-
-                        item.user_name = user.name;
-                        item.user_email = user.email;
-                        item.user_avatar = user.avatar;
+                        item.user_name = row.try_get("name").unwrap();
+                        item.user_email = row.try_get("email").unwrap();
+                        item.user_avatar = row.try_get("avatar").unwrap();
 
                         item
                     })

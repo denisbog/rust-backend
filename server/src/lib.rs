@@ -5,7 +5,7 @@ use axum_extra::extract::CookieJar;
 use index::search::SearchEngine;
 use oauth2::basic::BasicClient;
 use openapi::models::User;
-use sqlx::{query_builder, MySqlPool, QueryBuilder};
+use sqlx::{MySqlPool, QueryBuilder};
 
 mod server_impl;
 
