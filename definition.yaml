@@ -452,8 +452,6 @@ components:
           type: string
         price:
           type: number
-        collection:
-          type: string
         place:
           type: object
           properties:

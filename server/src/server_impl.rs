@@ -75,7 +75,45 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsIdPostPathParams,
         body: models::Item,
     ) -> Result<ItemsIdPostResponse, String> {
-        todo!()
+        let session = cookies.get("session").unwrap();
+        let current_user_id = self.get_session_user_id(&cookies).await;
+
+        let item_id = sqlx::query_scalar!(
+            r#"
+    INSERT INTO items(
+        title,
+        description,
+        price_type,
+        price,
+        location,
+        place_description,
+        category,
+        subcategory,
+        user,
+        reserved,
+        status
+        )
+    VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?, ?)
+            "#,
+            body.title,
+            body.description,
+            body.price_type,
+            body.price,
+            body.place.as_ref().unwrap().lat,
+            body.place.as_ref().unwrap().lng,
+            body.place.as_ref().unwrap().description,
+            body.category,
+            body.subcategory,
+            current_user_id,
+            body.reserved,
+            body.status
+        )
+        .execute(&self.pool)
+        .await
+        .unwrap()
+        .last_insert_id();
+
+        Ok(ItemsIdPostResponse::Status200(item_id.to_string()))
     }
 
     #[doc = r" MyItemsGet - GET /api/my-items"]
@@ -548,9 +586,71 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ItemsIdGetPathParams,
     ) -> Result<ItemsIdGetResponse, String> {
-        Ok(openapi::ItemsIdGetResponse::Status200(
-            openapi::models::Item::new(),
-        ))
+        let row = sqlx::query!(
+            r#"SELECT
+        items.id,
+        title,
+        description,
+        created,
+        updated,
+        price_type,
+        price,
+        location as "location: Point",
+        place_description,
+        category,
+        subcategory,
+        user,
+        reserved,
+        status,
+        name,
+        email,
+        avatar
+    FROM 
+        items 
+    LEFT JOIN
+        users
+    ON
+        items.user = users.id
+    WHERE
+        items.id = ?"#,
+            path_params.id
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .unwrap();
+        if let Some(row) = row {
+            Ok(openapi::ItemsIdGetResponse::Status200(
+                openapi::models::Item {
+                    id: Some(row.id.to_string()),
+                    title: Some(row.title),
+                    description: Some(row.description),
+
+                    created: Some(row.created.and_utc()),
+                    updated: Some(row.updated.and_utc()),
+
+                    price_type: Some(row.price_type),
+                    price: Some(row.price),
+
+                    place: Some(ItemPlace {
+                        lat: Some(row.location.lat),
+                        lng: Some(row.location.lng),
+                        description: row.place_description,
+                    }),
+                    category: Some(row.category),
+                    subcategory: Some(row.subcategory),
+                    user: Some(row.user),
+                    reserved: row.reserved,
+                    status: row.status,
+                    user_name: row.name,
+                    user_email: row.email,
+                    user_avatar: row.avatar,
+                },
+            ))
+        } else {
+            Ok(openapi::ItemsIdGetResponse::Status200(
+                openapi::models::Item::new(),
+            ))
+        }
     }
 
     #[doc = r" ItemsPut - PUT /api/items"]
