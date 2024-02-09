@@ -7,6 +7,8 @@ use axum_extra::extract::CookieJar;
 use common::DbUser;
 use http::Method;
 use openapi::models::ItemPlace;
+use openapi::models::Reservation;
+use openapi::models::Reservations;
 use openapi::models::Users;
 
 use crate::ServerImpl;
@@ -29,8 +31,6 @@ use openapi::{
     ReservationsIdReturnPostResponse, ReservationsPutResponse, UsersGetResponse,
     UsersIdDeleteResponse, UsersIdGetResponse, UsersIdPostResponse,
 };
-
-use sqlx::Row;
 
 #[allow(unused_variables)]
 #[async_trait]
@@ -199,7 +199,18 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         query_params: models::ReservationsGetQueryParams,
     ) -> Result<ReservationsGetResponse, String> {
-        todo!()
+        let items = sqlx::query!("select reservations.id, item, message, created, users.name from reservations left join users on user = users.id").fetch_all(&self.pool).await.unwrap();
+        let items = items
+            .into_iter()
+            .map(|item| Reservation {
+                id: Some(item.id.to_string()),
+                item: Some(item.item.to_string()),
+                message: Some(item.message),
+                user: item.name,
+                created: Some(item.created.and_utc()),
+            })
+            .collect::<Vec<Reservation>>();
+        Ok(ReservationsGetResponse::Status200(Reservations::new(items)))
     }
 
     #[doc = r" ReservationsIdAcceptPost - POST /api/reservations/{id}/accept"]
@@ -225,7 +236,14 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ReservationsIdDeclinePostPathParams,
     ) -> Result<ReservationsIdDeclinePostResponse, String> {
-        todo!()
+        let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
+            .execute(&self.pool)
+            .await
+            .unwrap()
+            .rows_affected();
+        Ok(ReservationsIdDeclinePostResponse::Status200(
+            rows.to_string(),
+        ))
     }
 
     #[doc = r" ReservationsIdDelete - DELETE /api/reservations/{id}"]
@@ -251,7 +269,32 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ReservationsIdGetPathParams,
     ) -> Result<ReservationsIdGetResponse, String> {
-        todo!()
+        let item = sqlx::query!(
+            r#"
+        select
+            reservations.id, item, message, reservations.created, name
+        from
+            reservations
+        left join
+            users
+        on
+            reservations.user = users.id
+        where
+            reservations.id = ?"#,
+            path_params.id
+        )
+        .fetch_one(&self.pool)
+        .await
+        .unwrap();
+
+        let reservation = Reservation {
+            id: Some(item.id.to_string()),
+            item: Some(item.item.to_string()),
+            message: Some(item.message),
+            user: item.name,
+            created: Some(item.created.and_utc()),
+        };
+        Ok(ReservationsIdGetResponse::Status200(reservation))
     }
 
     #[doc = r" ReservationsIdPost - POST /api/reservations/{id}"]
@@ -291,7 +334,24 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         body: models::Reservation,
     ) -> Result<ReservationsPutResponse, String> {
-        todo!()
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let item_id = sqlx::query_scalar!(
+                "insert into reservations (item, user, message) VALUES (?, ?, ?)",
+                body.item,
+                current_user_id,
+                body.message,
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap()
+            .last_insert_id();
+
+            Ok(ReservationsPutResponse::Status200(item_id.to_string()))
+        } else {
+            Ok(ReservationsPutResponse::Status200(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" UsersGet - GET /api/users"]

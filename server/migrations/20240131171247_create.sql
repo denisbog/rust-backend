@@ -5,8 +5,8 @@ CREATE TABLE IF NOT EXISTS items
     id BIGINT UNSIGNED PRIMARY KEY NOT NULL AUTO_INCREMENT,
     title VARCHAR(256) NOT NULL,
     description VARCHAR(1024) NOT NULL,
-    created DATETIME NOT NULL default current_timestamp,
-    updated DATETIME NOT NULL default current_timestamp on update current_timestamp,
+    created DATETIME NOT NULL DEFAULT current_timestamp,
+    updated DATETIME NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp,
     price_type VARCHAR(16) NOT NULL,
     price DOUBLE NOT NULL,
     location POINT NOT NULL,
@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS users
     email VARCHAR(128) NOT NULL,
     about VARCHAR(1024),
     avatar VARCHAR(128),
-    joined DATETIME NOT NULL default current_timestamp,
-    last_login DATETIME NOT NULL default current_timestamp on update current_timestamp
+    joined DATETIME NOT NULL DEFAULT current_timestamp,
+    last_login DATETIME NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp
 );
 
 CREATE TABLE IF NOT EXISTS reservations
@@ -37,8 +37,6 @@ CREATE TABLE IF NOT EXISTS reservations
     id INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
     item INTEGER NOT NULL,
     user VARCHAR(32) NOT NULL,
-    message VARCHAR(128)        NOT NULL,
-    avatar VARCHAR(128)        NOT NULL,
-    created DATETIME        NOT NULL default current_timestamp,
-    last_login DATETIME        NOT NULL on update current_timestamp
+    message VARCHAR(128) NOT NULL,
+    created DATETIME DEFAULT current_timestamp NOT NULL default current_timestamp
 );

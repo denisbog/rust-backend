@@ -105,3 +105,12 @@ pub struct DbUser {
     pub joined: Option<NaiveDateTime>,
     pub last_login: Option<NaiveDateTime>,
 }
+
+#[derive(sqlx::FromRow)]
+pub struct DbReservation {
+    pub id: Option<String>,
+    pub message: Option<String>,
+    pub created: Option<NaiveDateTime>,
+    pub item: Option<String>,
+    pub user: Option<String>,
+}
