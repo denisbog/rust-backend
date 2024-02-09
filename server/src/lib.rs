@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use async_session::{MemoryStore, SessionStore};
 use axum_extra::extract::CookieJar;
+use common::DbItem;
 use index::search::SearchEngine;
 use oauth2::basic::BasicClient;
-use openapi::models::User;
-use sqlx::{MySqlPool, QueryBuilder};
+use openapi::models::{Item, ItemPlace, User};
+use sqlx::{FromRow, MySql, MySqlPool, QueryBuilder, Row};
 
 mod server_impl;
 
@@ -57,5 +58,169 @@ impl ServerImpl {
             .await
             .unwrap();
         }
+    }
+
+    pub async fn get_items(
+        &self,
+        category: Option<String>,
+        subcategory: Option<String>,
+        lat: Option<f64>,
+        long: Option<f64>,
+        r: Option<f64>,
+        user: Option<String>,
+        reserved: Option<String>,
+        last_evaluated_key: Option<String>,
+    ) -> (Vec<Item>, Option<String>) {
+        let query = r#"
+    SELECT
+        items.id,
+        items.title,
+        items.description,
+        items.created,
+        items.updated,
+        items.price_type,
+        items.price,
+        items.location,
+        items.place_description,
+        items.category,
+        items.subcategory,
+        items.user,
+        items.reserved,
+        items.status,
+        users.name,
+        users.email,
+        users.avatar,
+        users.joined,
+        users.last_login
+    FROM 
+        items
+    LEFT JOIN
+        users
+    ON
+        items.user = users.id"#;
+
+        let mut builder = QueryBuilder::<MySql>::new(query);
+
+        let mut append_condition = false;
+
+        if let Some(ref category) = category {
+            if !append_condition {
+                builder.push(" WHERE");
+                append_condition = true;
+            }
+            builder.push(" category = ");
+            builder.push_bind(category);
+            if let Some(ref subcategory) = subcategory {
+                builder.push(" and subcategory in (");
+                let mut separated = builder.separated(',');
+                subcategory.split(',').into_iter().for_each(|subcategory| {
+                    separated.push_bind(subcategory);
+                });
+                separated.push_unseparated(')');
+            }
+        }
+
+        if let (Some(lat), Some(lng), Some(r)) = (lat, long, r) {
+            if append_condition {
+                builder.push(" AND");
+            } else {
+                builder.push(" WHERE");
+                append_condition = true;
+            }
+            builder.push(" ST_DISTANCE_SPHERE(location, POINT(");
+            builder.push_bind(lat);
+            builder.push(", ");
+            builder.push_bind(lng);
+            builder.push(")) < ");
+            builder.push_bind(r);
+        }
+
+        if let Some(user) = user {
+            if append_condition {
+                builder.push(" AND");
+            } else {
+                builder.push(" WHERE");
+                append_condition = true;
+            }
+            builder.push(" items.user = ");
+            builder.push_bind(user);
+        }
+
+        if let Some(reserved) = reserved {
+            if append_condition {
+                builder.push(" AND");
+            } else {
+                builder.push(" WHERE");
+                append_condition = true;
+            }
+            builder.push(" items.reserved = ");
+            builder.push_bind(reserved);
+        }
+
+        if let Some(last_id) = last_evaluated_key {
+            if append_condition {
+                builder.push(" AND");
+            } else {
+                builder.push(" WHERE");
+                // append_condition = true;
+            }
+            builder.push(" items.id <= ");
+            builder.push_bind(last_id);
+        }
+        builder.push(" ORDER BY id DESC");
+        builder.push(" LIMIT 11");
+        // println!("{}", builder.sql());
+        let execute_query = builder.build();
+        let recs = execute_query.fetch_all(&self.pool).await.unwrap();
+
+        let last_evaluated_key: Option<String> = if recs.len() > 10 {
+            let last_id: Option<u64> = recs.last().unwrap().try_get("id").unwrap();
+            Some(last_id.unwrap().to_string())
+        } else {
+            None
+        };
+
+        let items = recs
+            .into_iter()
+            .take(10)
+            .map(|row| {
+                let rec = DbItem::from_row(&row).unwrap();
+                let mut item = Item::new();
+                item.id = Some(rec.id.unwrap().to_string());
+                item.title = rec.title;
+                item.description = rec.description;
+
+                if let Some(native_date_time) = rec.created {
+                    item.created = Some(native_date_time.and_utc());
+                }
+                if let Some(native_date_time) = rec.updated {
+                    item.updated = Some(native_date_time.and_utc());
+                }
+
+                item.price_type = rec.price_type;
+                item.price = rec.price;
+
+                if let Some(coordinates) = rec.location {
+                    item.place = Some(ItemPlace {
+                        lat: Some(coordinates.lat),
+                        lng: Some(coordinates.lng),
+                        description: rec.place_description,
+                    })
+                }
+                item.category = rec.category;
+                item.subcategory = rec.subcategory;
+
+                item.user = rec.user;
+                item.reserved = rec.reserved;
+
+                item.user_name = row.try_get("name").unwrap();
+                item.user_email = row.try_get("email").unwrap();
+                item.user_avatar = row.try_get("avatar").unwrap();
+
+                item
+            })
+            .collect::<Vec<Item>>();
+
+        (items, last_evaluated_key)
     }
 }

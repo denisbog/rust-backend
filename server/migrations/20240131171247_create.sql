@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS items
     place_description VARCHAR(256),
     category VARCHAR(32) NOT NULL,
     subcategory VARCHAR(32) NOT NULL,
-    user VARCHAR(16) NOT NULL,
-    reserved VARCHAR(16),
+    user VARCHAR(32) NOT NULL,
+    reserved VARCHAR(32),
     status VARCHAR(16),
 
     INDEX(category,subcategory),
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS reservations
 (
     id INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
     item INTEGER NOT NULL,
-    user VARCHAR(16) NOT NULL,
+    user VARCHAR(32) NOT NULL,
     message VARCHAR(128)        NOT NULL,
     avatar VARCHAR(128)        NOT NULL,
     created DATETIME        NOT NULL default current_timestamp,
