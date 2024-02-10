@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "\n    SELECT\n        id,\n        title,\n        description,\n        created,\n        updated,\n        price_type,\n        price,\n        location \"location: Point\",\n        place_description,\n        category,\n        subcategory,\n        user,\n        reserved,\n        status\n    FROM\n        items where id = ?\n    order by id desc\n            ",
+  "query": "\n    SELECT\n        id,\n        title,\n        description,\n        created,\n        updated,\n        price_type,\n        price,\n        location \"location: Point\",\n        place_description,\n        category,\n        subcategory,\n        image,\n        user,\n        reserved,\n        status\n    FROM\n        items where id = ?\n    order by id desc\n            ",
   "describe": {
     "columns": [
       {
@@ -115,6 +115,16 @@
       },
       {
         "ordinal": 11,
+        "name": "image",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "char_set": 224,
+          "max_size": 512
+        }
+      },
+      {
+        "ordinal": 12,
         "name": "user",
         "type_info": {
           "type": "VarString",
@@ -124,7 +134,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "reserved",
         "type_info": {
           "type": "VarString",
@@ -134,7 +144,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "status",
         "type_info": {
           "type": "VarString",
@@ -159,10 +169,11 @@
       true,
       false,
       false,
+      true,
       false,
       true,
       true
     ]
   },
-  "hash": "49d04067c90cd7de278ba11de3ffc70e265ace64d9ce94bef00ad2a096d4d8b7"
+  "hash": "a310a4f9fe2dbfed5002d0de11e27b3eb0e74e94dd75271556508a702677beda"
 }

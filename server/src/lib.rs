@@ -86,6 +86,7 @@ impl ServerImpl {
         items.place_description,
         items.category,
         items.subcategory,
+        items.image,
         items.user,
         items.reserved,
         items.status,
@@ -223,7 +224,7 @@ impl ServerImpl {
                 }
                 item.category = rec.category;
                 item.subcategory = rec.subcategory;
-
+                item.image = rec.image;
                 item.user = rec.user;
                 item.reserved = rec.reserved;
 

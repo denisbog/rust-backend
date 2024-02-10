@@ -22,6 +22,7 @@ pub struct DbItem {
     pub place_description: Option<String>,
     pub category: Option<String>,
     pub subcategory: Option<String>,
+    pub image: Option<String>,
     pub user: Option<String>,
     pub reserved: Option<String>,
     pub status: Option<String>,
@@ -53,6 +54,7 @@ where
         let place_description: Option<String> = row.try_get("place_description")?;
         let category: Option<String> = row.try_get("category")?;
         let subcategory: Option<String> = row.try_get("subcategory")?;
+        let image: Option<String> = row.try_get("image")?;
         let user: Option<String> = row.try_get("user")?;
         let reserved: Option<String> = row.try_get("reserved")?;
         let status: Option<String> = row.try_get("status")?;
@@ -68,6 +70,7 @@ where
             place_description,
             category,
             subcategory,
+            image,
             user,
             reserved,
             status,

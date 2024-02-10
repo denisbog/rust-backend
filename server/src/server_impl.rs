@@ -862,6 +862,7 @@ impl openapi::Api for ServerImpl {
         place_description,
         category,
         subcategory,
+        image,
         user,
         reserved,
         status

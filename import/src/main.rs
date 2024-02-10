@@ -1,11 +1,11 @@
 use std::{collections::HashMap, io::BufRead, path::PathBuf, sync::Arc};
 
-use chrono::DateTime;
 use common::{DbItem, Point};
 use index::search::SearchEngine;
 use serde_derive::{Deserialize, Serialize};
 use serde_dynamo::AttributeValue;
 use sqlx::MySqlPool;
+use tracing_subscriber::fmt::format;
 
 #[derive(Default, Debug, Deserialize, Serialize)]
 struct Place {
@@ -45,9 +45,6 @@ async fn main() {
     .map(|line| serde_json::from_str(&line.unwrap()).unwrap())
     .map(|item: Wrap| serde_dynamo::from_item(serde_dynamo::Item::from(item.item)).unwrap())
     .collect();
-    let datetime = DateTime::parse_from_rfc3339("2022-08-26T08:13:03.118623+00:00").unwrap();
-    println!("{:?}", datetime.naive_local());
-    println!("{:?}", items.first());
     let search_engine = Arc::new(SearchEngine::default());
 
     search_engine.reset_index().await;
@@ -89,12 +86,11 @@ async fn main() {
 }
 
 async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
-    if let Ok(mut transaction) = pool.begin().await {
-        if let (Some(title), Some(place), Some(category), Some(subcategory)) =
-            (&item.title, &item.place, &item.category, &item.subcategory)
-        {
-            let id = sqlx::query_scalar!(
-                r#"
+    if let (Some(title), Some(place), Some(category), Some(subcategory)) =
+        (&item.title, &item.place, &item.category, &item.subcategory)
+    {
+        let id = sqlx::query_scalar!(
+            r#"
     INSERT INTO items(
         title,
         description,
@@ -104,50 +100,96 @@ async fn store(pool: &MySqlPool, search_engine: &SearchEngine, item: Item) {
         place_description,
         category,
         subcategory,
+        image,
         user,
         status
         )
-    VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?, ?)
             "#,
-                title,
-                item.description,
-                item.price_type,
-                100,
-                place.lat,
-                place.lng,
-                item.address,
-                category,
-                subcategory,
-                "generated",
-                "all",
-            )
-            .execute(&mut *transaction)
-            .await
-            .unwrap()
-            .last_insert_id();
+            title,
+            item.description,
+            item.price_type,
+            100,
+            place.lat,
+            place.lng,
+            item.address,
+            category,
+            subcategory,
+            "default.jpeg",
+            "generated",
+            "all",
+        )
+        .execute(pool)
+        .await
+        .unwrap()
+        .last_insert_id();
 
-            let db_item = DbItem {
-                id: Some(id),
-                title: item.title,
-                description: item.description,
-                category: item.category,
-                subcategory: item.subcategory,
-                created: None,
-                location: Some(Point {
-                    lat: item.place.as_ref().unwrap().lat,
-                    lng: item.place.as_ref().unwrap().lng,
-                }),
-                price: Some(100f64),
-                place_description: item.address,
-                price_type: item.price_type,
-                reserved: None,
-                status: None,
-                updated: None,
-                user: Some("genered".into()),
-            };
+        copy_image(id, &item).await;
 
-            search_engine.index(&db_item).await;
-        }
-        let _ = transaction.commit().await;
+        let db_item = DbItem {
+            id: Some(id),
+            title: item.title,
+            description: item.description,
+            category: item.category,
+            subcategory: item.subcategory,
+            image: Some("default.jpeg".to_string()),
+            created: None,
+            location: Some(Point {
+                lat: item.place.as_ref().unwrap().lat,
+                lng: item.place.as_ref().unwrap().lng,
+            }),
+            price: Some(100f64),
+            place_description: item.address,
+            price_type: item.price_type,
+            reserved: None,
+            status: None,
+            updated: None,
+            user: Some("genered".into()),
+        };
+
+        search_engine.index(&db_item).await;
     };
+}
+
+async fn copy_image(id: u64, item: &Item) -> String {
+    if tokio::fs::create_dir(format!("./content/{}", id))
+        .await
+        .is_err()
+    {
+        println!("issue while creating destination folder, skip creation, continue with copy");
+    }
+
+    let image_name = item
+        .images
+        .as_ref()
+        .unwrap()
+        .iter()
+        .cloned()
+        .next()
+        .unwrap()
+        .clone();
+
+    let image_name = image_name.rsplit_once('/').unwrap().1;
+
+    let src = format!("../backup/images/{}", image_name);
+    let dest = format!("./content/{}/{}", id, "default.jpeg");
+    if tokio::fs::copy(&src, &dest).await.is_err() {
+        println!("error while copying {src} to {dest}");
+        let image_name = "noimage.jpeg";
+        let src = format!("../backup/images/{}", "noimage.jpg");
+        tokio::fs::copy(&src, &dest).await.unwrap();
+        image_name.to_string()
+    } else {
+        image_name.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::DateTime;
+    #[test]
+    fn conversion() {
+        let datetime = DateTime::parse_from_rfc3339("2022-08-26T08:13:03.118623+00:00").unwrap();
+        println!("{:?}", datetime.naive_local());
+    }
 }
