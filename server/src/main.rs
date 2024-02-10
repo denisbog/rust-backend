@@ -1,10 +1,13 @@
 use ::server::ServerImpl;
 use async_session::MemoryStore;
-use axum::extract::MatchedPath;
+use axum::extract::{Host, MatchedPath};
+use axum::handler::HandlerWithoutStateExt;
 use axum::response::Response;
 use axum::routing::get_service;
+use axum::BoxError;
 use axum_server::tls_rustls::RustlsConfig;
-use http::{Method, Request};
+use futures::Future;
+use http::{Method, Request, Uri};
 use index::search::SearchEngine;
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use openapi::server;
@@ -25,7 +28,8 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let db_connection_str = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "mariadb://root:my-secret-pw@localhost/items".to_string());
+        .context("Missing DATABASE_URL!")
+        .unwrap();
     let pool = MySqlPool::connect(&db_connection_str).await.unwrap();
 
     let search_engine = Arc::new(SearchEngine::default());
@@ -84,14 +88,15 @@ async fn main() {
     )
     .await
     .unwrap();
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3443));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3443));
     tracing::debug!("listening on {}", addr);
 
     let handle = axum_server::Handle::new();
-    let _shutdown_future = shutdown_signal(handle.clone());
-    // tokio::spawn(redirect_http_to_https(shutdown_future));
+    let shutdown_future = shutdown_signal(handle.clone());
+    tokio::spawn(redirect_http_to_https(shutdown_future));
 
     axum_server::bind_rustls(addr, config)
+        .handle(handle)
         .serve(app.into_make_service())
         .await
         .unwrap();
@@ -160,40 +165,40 @@ async fn shutdown_signal(handle: axum_server::Handle) {
     handle.graceful_shutdown(Some(Duration::from_secs(10)));
 }
 
-// async fn redirect_http_to_https<F>(signal: F)
-// where
-//     F: Future<Output = ()> + Send + 'static,
-// {
-//     fn make_https(host: String, uri: Uri) -> Result<Uri, BoxError> {
-//         let mut parts = uri.into_parts();
-//
-//         parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
-//
-//         if parts.path_and_query.is_none() {
-//             parts.path_and_query = Some("/".parse().unwrap());
-//         }
-//
-//         let https_host = host.replace("3000", "3443");
-//         parts.authority = Some(https_host.parse()?);
-//
-//         Ok(Uri::from_parts(parts)?)
-//     }
-//
-//     let redirect = |Host(host): axum::extract::Host, uri: axum::http::Uri| async move {
-//         match make_https(host, uri) {
-//             Ok(uri) => Ok(axum::response::Redirect::permanent(&uri.to_string())),
-//             Err(error) => {
-//                 tracing::warn!(%error, "failed to convert URI to HTTPS");
-//                 Err(axum::http::StatusCode::BAD_REQUEST)
-//             }
-//         }
-//     };
-//
-//     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-//     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-//     tracing::debug!("listening on {addr}");
-//     axum::serve(listener, redirect.into_make_service())
-//         .with_graceful_shutdown(signal)
-//         .await
-//         .unwrap();
-// }
+async fn redirect_http_to_https<F>(signal: F)
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    fn make_https(host: String, uri: Uri) -> Result<Uri, BoxError> {
+        let mut parts = uri.into_parts();
+
+        parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
+
+        if parts.path_and_query.is_none() {
+            parts.path_and_query = Some("/".parse().unwrap());
+        }
+
+        let https_host = host.replace("3000", "3443");
+        parts.authority = Some(https_host.parse()?);
+
+        Ok(Uri::from_parts(parts)?)
+    }
+
+    let redirect = |Host(host): axum::extract::Host, uri: axum::http::Uri| async move {
+        match make_https(host, uri) {
+            Ok(uri) => Ok(axum::response::Redirect::permanent(&uri.to_string())),
+            Err(error) => {
+                tracing::warn!(%error, "failed to convert URI to HTTPS");
+                Err(axum::http::StatusCode::BAD_REQUEST)
+            }
+        }
+    };
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    tracing::debug!("listening on {addr}");
+    axum::serve(listener, redirect.into_make_service())
+        .with_graceful_shutdown(signal)
+        .await
+        .unwrap();
+}
