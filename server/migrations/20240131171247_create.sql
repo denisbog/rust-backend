@@ -13,12 +13,14 @@ CREATE TABLE IF NOT EXISTS items
     place_description VARCHAR(256),
     category VARCHAR(32) NOT NULL,
     subcategory VARCHAR(32) NOT NULL,
+    image VARCHAR(128),
     user VARCHAR(32) NOT NULL,
     reserved VARCHAR(32),
     status VARCHAR(16),
 
     INDEX(category,subcategory),
-    SPATIAL INDEX(location)
+    SPATIAL INDEX(location),
+    FULLTEXT(title, description)
 );
 
 CREATE TABLE IF NOT EXISTS users
@@ -38,5 +40,13 @@ CREATE TABLE IF NOT EXISTS reservations
     item INTEGER NOT NULL,
     user VARCHAR(32) NOT NULL,
     message VARCHAR(128) NOT NULL,
-    created DATETIME DEFAULT current_timestamp NOT NULL default current_timestamp
+    created DATETIME NOT NULL DEFAULT current_timestamp
 );
+
+CREATE EVENT removeExpiredReservations
+    ON SCHEDULE EVERY 5 MINUTE
+DO
+   DELETE FROM reservations
+    WHERE TIMESTAMPDIFF(MINUTE, NOW(), reservations.created) > 5;
+
+SET GLOBAL event_scheduler = ON;

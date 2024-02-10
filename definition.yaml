@@ -38,7 +38,7 @@ paths:
               schema:
                 type: string
             Set-Cookie:
-              schema: 
+              schema:
                 type: string
                 example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
 
@@ -53,37 +53,30 @@ paths:
         - $ref : "#/components/parameters/LastEvaluatedKey"
         - name: category
           in: query
-          required: false
           schema:
             type: string
         - name: subcategory
           in: query
-          required: false
           schema:
             type: string
-        - name: lat 
+        - name: lat
           in: query
-          required: false
           schema:
             type: number
-        - name: long 
+        - name: long
           in: query
-          required: false
           schema:
             type: number
         - name: r
           in: query
-          required: false
           schema:
             type: number
         - name: q
           in: query
-          required: false
           schema:
             type: string
         - name: lastEvaluatedKey
           in: query
-          required: false
           schema:
             type: string
       responses:
@@ -144,21 +137,30 @@ paths:
             application/json:
               schema:
                 type: string
-  /items/{id}/content:
+
+  /items/content/{name}:
     get:
       parameters:
-        - $ref : "#/components/parameters/id"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: "200 response"
           content:
-            image/*:
+            image/jpeg:
               schema:
                 type: string
                 format: binary
     put:
       parameters:
-        - $ref : "#/components/parameters/id"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
       requestBody:
         content:
           image/*:
@@ -171,13 +173,93 @@ paths:
           content:
             application/json:
               schema:
-                type: string 
+                type: string
+    delete:
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /items/content:
+    get:
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+
+  /items/{id}/content/{name}:
+    get:
+      parameters:
+        - $ref : "#/components/parameters/id"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+    put:
+      parameters:
+        - $ref : "#/components/parameters/id"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                type: string
+    delete:
+      parameters:
+        - $ref : "#/components/parameters/id"
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "200 response"
+          content:
+            application/json:
+              schema:
+                type: string
 
 
 
 
 
-                  
+
   /my-items:
     get:
       parameters:
@@ -396,10 +478,10 @@ components:
       schema: bearer
       bearerFormat:
   securitySchemes:
-    cookieAuth:         # arbitrary name for the security scheme; will be used in the "security" key later
+    cookieAuth:
       type: apiKey
       in: cookie
-      name: session 
+      name: session
   schemas:
     reservation:
       type: object
@@ -413,7 +495,11 @@ components:
           format: date-time
         item:
           type: string
-        user:
+        userName:
+          type: string
+        userEmail:
+          type: string
+        userAvatar:
           type: string
     user:
       type: object
@@ -480,6 +566,12 @@ components:
           type: string
         userAvatar:
           type: string
+        image:
+          type: string
+        images:
+          type: array
+          items:
+            type: string
     reservations:
       required:
       - "Items"

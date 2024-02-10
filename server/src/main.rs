@@ -1,6 +1,10 @@
 use ::server::ServerImpl;
 use async_session::MemoryStore;
+use axum::extract::MatchedPath;
+use axum::response::Response;
+use axum::routing::get_service;
 use axum_server::tls_rustls::RustlsConfig;
+use http::{Method, Request};
 use index::search::SearchEngine;
 use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use openapi::server;
@@ -10,6 +14,11 @@ use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, sync::Arc};
 use tokio::signal;
+use tower_http::classify::ServerErrorsFailureClass;
+use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::ServeDir;
+use tower_http::trace::TraceLayer;
+use tracing::{Level, Span};
 
 #[tokio::main]
 async fn main() {
@@ -22,14 +31,53 @@ async fn main() {
     let search_engine = Arc::new(SearchEngine::default());
     SearchEngine::start(search_engine.clone()).await;
 
-    let var_name = ServerImpl {
+    let server = ServerImpl {
         store: MemoryStore::new(),
         oauth_client: oauth_client().unwrap(),
         pool,
         search_engine,
     };
 
-    let app = server::new(Arc::new(var_name));
+    let tracing = TraceLayer::new_for_http()
+        .make_span_with(|req: &Request<_>| {
+            let path = if let Some(path) = req.extensions().get::<MatchedPath>() {
+                path.as_str()
+            } else {
+                req.uri().path()
+            };
+            let method = if let Some(method) = req.extensions().get::<Method>() {
+                method.as_str()
+            } else {
+                req.method().as_str()
+            };
+            tracing::info_span!("http-request", %path, %method)
+        })
+        .on_response(|response: &Response<_>, latency: Duration, _: &Span| {
+            tracing::event!(
+                Level::INFO,
+                latency = format_args!("{} ms", latency.as_millis()),
+                status = &tracing::field::display(response.status()),
+                "finished processing request"
+            );
+        })
+        .on_failure(|_: ServerErrorsFailureClass, latency: Duration, _: &Span| {
+            tracing::event!(
+                Level::ERROR,
+                latency = format_args!("{} ms", latency.as_millis()),
+                "failure during request processing"
+            );
+        });
+
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+        .allow_headers(Any)
+        .allow_origin(Any);
+
+    let app = server::new(Arc::new(server))
+        .route("/", get_service(ServeDir::new("./static")))
+        .route_layer(tracing)
+        .route_layer(cors);
+
     let config = RustlsConfig::from_pem_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("domain.crt"),
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("domain.key"),

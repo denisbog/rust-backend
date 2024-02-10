@@ -1,15 +1,16 @@
-use std::sync::Arc;
+use std::{io::Cursor, sync::Arc};
 
 use async_session::{MemoryStore, SessionStore};
 use axum_extra::extract::CookieJar;
-use common::DbItem;
+use bytes::Bytes;
+use common::{DbItem, DbUser};
 use index::search::SearchEngine;
 use oauth2::basic::BasicClient;
 use openapi::models::{Item, ItemPlace, User};
 use sqlx::{FromRow, MySql, MySqlPool, QueryBuilder, Row};
 
 mod server_impl;
-
+use tokio::io::AsyncReadExt;
 pub struct ServerImpl {
     pub store: MemoryStore,
     pub oauth_client: BasicClient,
@@ -67,6 +68,7 @@ impl ServerImpl {
         lat: Option<f64>,
         long: Option<f64>,
         r: Option<f64>,
+        q: Option<String>,
         user: Option<String>,
         reserved: Option<String>,
         last_evaluated_key: Option<String>,
@@ -113,7 +115,7 @@ impl ServerImpl {
             if let Some(ref subcategory) = subcategory {
                 builder.push(" and subcategory in (");
                 let mut separated = builder.separated(',');
-                subcategory.split(',').into_iter().for_each(|subcategory| {
+                subcategory.split(',').for_each(|subcategory| {
                     separated.push_bind(subcategory);
                 });
                 separated.push_unseparated(')');
@@ -155,6 +157,18 @@ impl ServerImpl {
             }
             builder.push(" items.reserved = ");
             builder.push_bind(reserved);
+        }
+
+        if let Some(q) = q {
+            if append_condition {
+                builder.push(" AND");
+            } else {
+                builder.push(" WHERE");
+                append_condition = true;
+            }
+            builder.push(" MATCH(title, description) AGAINST(");
+            builder.push_bind(q);
+            builder.push(")");
         }
 
         if let Some(last_id) = last_evaluated_key {
@@ -213,14 +227,87 @@ impl ServerImpl {
                 item.user = rec.user;
                 item.reserved = rec.reserved;
 
+                item.status = rec.status;
+
                 item.user_name = row.try_get("name").unwrap();
                 item.user_email = row.try_get("email").unwrap();
                 item.user_avatar = row.try_get("avatar").unwrap();
-
                 item
             })
             .collect::<Vec<Item>>();
 
         (items, last_evaluated_key)
+    }
+
+    pub async fn get_images_for_item(&self, id: &str) -> Option<Vec<String>> {
+        if let Ok(mut contents) = tokio::fs::read_dir(format!("content/{}", id)).await {
+            let mut items = Vec::<String>::new();
+            while let Some(content_folder) = contents.next_entry().await.unwrap() {
+                items.push(content_folder.file_name().into_string().unwrap());
+            }
+            return Some(items);
+        }
+        None
+    }
+
+    pub async fn upload_content(&self, id: &str, file_name: &str, bytes: &Bytes) {
+        let file_name = if file_name.contains('.') {
+            file_name.rsplit_once('.').unwrap().0
+        } else {
+            file_name
+        };
+        let dest = format!("content/{}/{}.jpeg", id, file_name);
+
+        tokio::fs::create_dir_all(format!("content/{}", id))
+            .await
+            .unwrap();
+
+        let from_bytes = Cursor::new(bytes);
+        let image = image::io::Reader::new(from_bytes)
+            .with_guessed_format()
+            .unwrap()
+            .decode()
+            .unwrap();
+        let image = image.resize(720, 720, image::imageops::FilterType::CatmullRom);
+        image
+            .save_with_format(dest, image::ImageFormat::Jpeg)
+            .unwrap();
+    }
+
+    pub async fn get_content(&self, id: &str, name: &str) -> Option<Vec<u8>> {
+        if let Ok(mut file) = tokio::fs::File::open(format!("./content/{}/{}", id, name)).await {
+            let mut contents = vec![];
+            file.read_to_end(&mut contents).await.unwrap();
+            Some(contents)
+        } else {
+            None
+        }
+    }
+
+    pub async fn delete_content(&self, id: &str, name: &str) -> Result<(), std::io::Error> {
+        tokio::fs::remove_file(format!("./content/{}/{}", id, name)).await
+    }
+
+    pub async fn move_images(&self, session_id: &str, id: &str) -> Result<(), std::io::Error> {
+        tokio::fs::rename(
+            format!("./content/{}", session_id),
+            format!("./content/{}", id),
+        )
+        .await
+    }
+    pub fn db_to_rest_user(&self, db_user: DbUser) -> User {
+        User {
+            id: db_user.id,
+            name: db_user.name,
+            about: db_user.about,
+            avatar: db_user.avatar,
+            email: db_user.email,
+            joined: db_user
+                .joined
+                .map(|native_date_time| native_date_time.and_utc()),
+            last_login: db_user
+                .last_login
+                .map(|native_date_time| native_date_time.and_utc()),
+        }
     }
 }
