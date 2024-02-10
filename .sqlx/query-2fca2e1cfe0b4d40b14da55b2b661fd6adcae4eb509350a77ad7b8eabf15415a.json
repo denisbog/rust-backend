@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "update items set reserved = ?, status = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "2fca2e1cfe0b4d40b14da55b2b661fd6adcae4eb509350a77ad7b8eabf15415a"
+}

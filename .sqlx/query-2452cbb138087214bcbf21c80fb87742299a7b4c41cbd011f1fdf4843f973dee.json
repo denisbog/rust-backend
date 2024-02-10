@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "\n    INSERT INTO items(\n        title,\n        description,\n        price_type,\n        price,\n        location,\n        place_description,\n        category,\n        subcategory,\n        user,\n        status\n        )\n    VALUES (?, ?, ?, ?, Point(?,?), ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "2452cbb138087214bcbf21c80fb87742299a7b4c41cbd011f1fdf4843f973dee"
+}

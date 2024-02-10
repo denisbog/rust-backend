@@ -9,11 +9,44 @@ use crate::{models, types::*};
 
       
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))]
+    pub struct AuthorizedGetHeaderParams {
+        pub authorization: Option<String>,
+    }
+
+            
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
     #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
     pub struct AuthorizedGetQueryParams {
                 #[serde(rename = "code")]
-                pub code: String,
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub code: Option<String>,
     }
+
+      
+      
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
+    pub struct ItemsContentNameDeletePathParams {
+                pub name: String,
+    }
+
+
+      
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
+    pub struct ItemsContentNameGetPathParams {
+                pub name: String,
+    }
+
+
+      
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
+    pub struct ItemsContentNamePutPathParams {
+                pub name: String,
+    }
+
 
       
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
@@ -22,21 +55,53 @@ use crate::{models, types::*};
                 #[serde(rename = "LastEvaluatedKey")]
                 #[serde(skip_serializing_if="Option::is_none")]
                 pub last_evaluated_key: Option<String>,
+                #[serde(rename = "category")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub category: Option<String>,
+                #[serde(rename = "subcategory")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub subcategory: Option<String>,
+                #[serde(rename = "lat")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub lat: Option<f64>,
+                #[serde(rename = "long")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub long: Option<f64>,
+                #[serde(rename = "r")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub r: Option<f64>,
+                #[serde(rename = "q")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub q: Option<String>,
+                #[serde(rename = "lastEvaluatedKey")]
+                #[serde(skip_serializing_if="Option::is_none")]
+                pub last_evaluated_key2: Option<String>,
     }
 
       
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
     #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
-    pub struct ItemsIdContentGetPathParams {
+    pub struct ItemsIdContentNameDeletePathParams {
                 pub id: String,
+                pub name: String,
     }
 
 
       
     #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
     #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
-    pub struct ItemsIdContentPutPathParams {
+    pub struct ItemsIdContentNameGetPathParams {
                 pub id: String,
+                pub name: String,
+    }
+
+
+      
+    #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, validator::Validate)]
+    #[cfg_attr(feature = "conversion", derive(frunk::LabelledGeneric))] 
+    pub struct ItemsIdContentNamePutPathParams {
+                pub id: String,
+                pub name: String,
     }
 
 
@@ -205,6 +270,10 @@ pub struct Item {
     #[serde(skip_serializing_if="Option::is_none")]
     pub title: Option<String>,
 
+    #[serde(rename = "description")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub description: Option<String>,
+
     #[serde(rename = "created")]
     #[serde(skip_serializing_if="Option::is_none")]
     pub created: Option<chrono::DateTime::<chrono::Utc>>,
@@ -213,10 +282,6 @@ pub struct Item {
     #[serde(skip_serializing_if="Option::is_none")]
     pub updated: Option<chrono::DateTime::<chrono::Utc>>,
 
-    #[serde(rename = "name")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub name: Option<String>,
-
     #[serde(rename = "priceType")]
     #[serde(skip_serializing_if="Option::is_none")]
     pub price_type: Option<String>,
@@ -224,10 +289,6 @@ pub struct Item {
     #[serde(rename = "price")]
     #[serde(skip_serializing_if="Option::is_none")]
     pub price: Option<f64>,
-
-    #[serde(rename = "collection")]
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub collection: Option<String>,
 
     #[serde(rename = "place")]
     #[serde(skip_serializing_if="Option::is_none")]
@@ -253,6 +314,26 @@ pub struct Item {
     #[serde(skip_serializing_if="Option::is_none")]
     pub status: Option<String>,
 
+    #[serde(rename = "userName")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub user_name: Option<String>,
+
+    #[serde(rename = "userEmail")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub user_email: Option<String>,
+
+    #[serde(rename = "userAvatar")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub user_avatar: Option<String>,
+
+    #[serde(rename = "image")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub image: Option<String>,
+
+    #[serde(rename = "images")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub images: Option<Vec<String>>,
+
 }
 
 
@@ -262,18 +343,22 @@ impl Item {
         Item {
             id: None,
             title: None,
+            description: None,
             created: None,
             updated: None,
-            name: None,
             price_type: None,
             price: None,
-            collection: None,
             place: None,
             category: None,
             subcategory: None,
             user: None,
             reserved: None,
             status: None,
+            user_name: None,
+            user_email: None,
+            user_avatar: None,
+            image: None,
+            images: None,
         }
     }
 }
@@ -300,17 +385,17 @@ impl std::string::ToString for Item {
                 ].join(",")
             }),
 
+
+            self.description.as_ref().map(|description| {
+                [
+                    "description".to_string(),
+                    description.to_string(),
+                ].join(",")
+            }),
+
             // Skipping created in query parameter serialization
 
             // Skipping updated in query parameter serialization
-
-
-            self.name.as_ref().map(|name| {
-                [
-                    "name".to_string(),
-                    name.to_string(),
-                ].join(",")
-            }),
 
 
             self.price_type.as_ref().map(|price_type| {
@@ -325,14 +410,6 @@ impl std::string::ToString for Item {
                 [
                     "price".to_string(),
                     price.to_string(),
-                ].join(",")
-            }),
-
-
-            self.collection.as_ref().map(|collection| {
-                [
-                    "collection".to_string(),
-                    collection.to_string(),
                 ].join(",")
             }),
 
@@ -378,6 +455,46 @@ impl std::string::ToString for Item {
                 ].join(",")
             }),
 
+
+            self.user_name.as_ref().map(|user_name| {
+                [
+                    "userName".to_string(),
+                    user_name.to_string(),
+                ].join(",")
+            }),
+
+
+            self.user_email.as_ref().map(|user_email| {
+                [
+                    "userEmail".to_string(),
+                    user_email.to_string(),
+                ].join(",")
+            }),
+
+
+            self.user_avatar.as_ref().map(|user_avatar| {
+                [
+                    "userAvatar".to_string(),
+                    user_avatar.to_string(),
+                ].join(",")
+            }),
+
+
+            self.image.as_ref().map(|image| {
+                [
+                    "image".to_string(),
+                    image.to_string(),
+                ].join(",")
+            }),
+
+
+            self.images.as_ref().map(|images| {
+                [
+                    "images".to_string(),
+                    images.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(","),
+                ].join(",")
+            }),
+
         ];
 
         params.into_iter().flatten().collect::<Vec<_>>().join(",")
@@ -397,18 +514,22 @@ impl std::str::FromStr for Item {
         struct IntermediateRep {
             pub id: Vec<String>,
             pub title: Vec<String>,
+            pub description: Vec<String>,
             pub created: Vec<chrono::DateTime::<chrono::Utc>>,
             pub updated: Vec<chrono::DateTime::<chrono::Utc>>,
-            pub name: Vec<String>,
             pub price_type: Vec<String>,
             pub price: Vec<f64>,
-            pub collection: Vec<String>,
             pub place: Vec<models::ItemPlace>,
             pub category: Vec<String>,
             pub subcategory: Vec<String>,
             pub user: Vec<String>,
             pub reserved: Vec<String>,
             pub status: Vec<String>,
+            pub user_name: Vec<String>,
+            pub user_email: Vec<String>,
+            pub user_avatar: Vec<String>,
+            pub image: Vec<String>,
+            pub images: Vec<Vec<String>>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -431,17 +552,15 @@ impl std::str::FromStr for Item {
                     #[allow(clippy::redundant_clone)]
                     "title" => intermediate_rep.title.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
+                    "description" => intermediate_rep.description.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
                     "created" => intermediate_rep.created.push(<chrono::DateTime::<chrono::Utc> as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "updated" => intermediate_rep.updated.push(<chrono::DateTime::<chrono::Utc> as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "name" => intermediate_rep.name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
                     "priceType" => intermediate_rep.price_type.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "price" => intermediate_rep.price.push(<f64 as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
-                    #[allow(clippy::redundant_clone)]
-                    "collection" => intermediate_rep.collection.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "place" => intermediate_rep.place.push(<models::ItemPlace as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
@@ -454,6 +573,15 @@ impl std::str::FromStr for Item {
                     "reserved" => intermediate_rep.reserved.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
                     "status" => intermediate_rep.status.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "userName" => intermediate_rep.user_name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "userEmail" => intermediate_rep.user_email.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "userAvatar" => intermediate_rep.user_avatar.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "image" => intermediate_rep.image.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "images" => return std::result::Result::Err("Parsing a container in this style is not supported in Item".to_string()),
                     _ => return std::result::Result::Err("Unexpected key while parsing Item".to_string())
                 }
             }
@@ -466,18 +594,22 @@ impl std::str::FromStr for Item {
         std::result::Result::Ok(Item {
             id: intermediate_rep.id.into_iter().next(),
             title: intermediate_rep.title.into_iter().next(),
+            description: intermediate_rep.description.into_iter().next(),
             created: intermediate_rep.created.into_iter().next(),
             updated: intermediate_rep.updated.into_iter().next(),
-            name: intermediate_rep.name.into_iter().next(),
             price_type: intermediate_rep.price_type.into_iter().next(),
             price: intermediate_rep.price.into_iter().next(),
-            collection: intermediate_rep.collection.into_iter().next(),
             place: intermediate_rep.place.into_iter().next(),
             category: intermediate_rep.category.into_iter().next(),
             subcategory: intermediate_rep.subcategory.into_iter().next(),
             user: intermediate_rep.user.into_iter().next(),
             reserved: intermediate_rep.reserved.into_iter().next(),
             status: intermediate_rep.status.into_iter().next(),
+            user_name: intermediate_rep.user_name.into_iter().next(),
+            user_email: intermediate_rep.user_email.into_iter().next(),
+            user_avatar: intermediate_rep.user_avatar.into_iter().next(),
+            image: intermediate_rep.image.into_iter().next(),
+            images: intermediate_rep.images.into_iter().next(),
         })
     }
 }
@@ -846,9 +978,17 @@ pub struct Reservation {
     #[serde(skip_serializing_if="Option::is_none")]
     pub item: Option<String>,
 
-    #[serde(rename = "user")]
+    #[serde(rename = "userName")]
     #[serde(skip_serializing_if="Option::is_none")]
-    pub user: Option<String>,
+    pub user_name: Option<String>,
+
+    #[serde(rename = "userEmail")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub user_email: Option<String>,
+
+    #[serde(rename = "userAvatar")]
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub user_avatar: Option<String>,
 
 }
 
@@ -861,7 +1001,9 @@ impl Reservation {
             message: None,
             created: None,
             item: None,
-            user: None,
+            user_name: None,
+            user_email: None,
+            user_avatar: None,
         }
     }
 }
@@ -899,10 +1041,26 @@ impl std::string::ToString for Reservation {
             }),
 
 
-            self.user.as_ref().map(|user| {
+            self.user_name.as_ref().map(|user_name| {
                 [
-                    "user".to_string(),
-                    user.to_string(),
+                    "userName".to_string(),
+                    user_name.to_string(),
+                ].join(",")
+            }),
+
+
+            self.user_email.as_ref().map(|user_email| {
+                [
+                    "userEmail".to_string(),
+                    user_email.to_string(),
+                ].join(",")
+            }),
+
+
+            self.user_avatar.as_ref().map(|user_avatar| {
+                [
+                    "userAvatar".to_string(),
+                    user_avatar.to_string(),
                 ].join(",")
             }),
 
@@ -927,7 +1085,9 @@ impl std::str::FromStr for Reservation {
             pub message: Vec<String>,
             pub created: Vec<chrono::DateTime::<chrono::Utc>>,
             pub item: Vec<String>,
-            pub user: Vec<String>,
+            pub user_name: Vec<String>,
+            pub user_email: Vec<String>,
+            pub user_avatar: Vec<String>,
         }
 
         let mut intermediate_rep = IntermediateRep::default();
@@ -954,7 +1114,11 @@ impl std::str::FromStr for Reservation {
                     #[allow(clippy::redundant_clone)]
                     "item" => intermediate_rep.item.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     #[allow(clippy::redundant_clone)]
-                    "user" => intermediate_rep.user.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    "userName" => intermediate_rep.user_name.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "userEmail" => intermediate_rep.user_email.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
+                    #[allow(clippy::redundant_clone)]
+                    "userAvatar" => intermediate_rep.user_avatar.push(<String as std::str::FromStr>::from_str(val).map_err(|x| x.to_string())?),
                     _ => return std::result::Result::Err("Unexpected key while parsing Reservation".to_string())
                 }
             }
@@ -969,7 +1133,9 @@ impl std::str::FromStr for Reservation {
             message: intermediate_rep.message.into_iter().next(),
             created: intermediate_rep.created.into_iter().next(),
             item: intermediate_rep.item.into_iter().next(),
-            user: intermediate_rep.user.into_iter().next(),
+            user_name: intermediate_rep.user_name.into_iter().next(),
+            user_email: intermediate_rep.user_email.into_iter().next(),
+            user_avatar: intermediate_rep.user_avatar.into_iter().next(),
         })
     }
 }

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "update users set last_login = current_time() where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "46a6522536d50d8ce65d037bbb0e79f30a52af3b39f7313526952457e3f8fd50"
+}

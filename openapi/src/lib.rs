@@ -36,6 +36,42 @@ pub enum AuthorizedGetResponse {
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
+pub enum ItemsContentGetResponse {
+    /// 200 response
+    Status200
+    (Vec<String>)
+}
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
+pub enum ItemsContentNameDeleteResponse {
+    /// 200 response
+    Status200
+    (String)
+}
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
+pub enum ItemsContentNameGetResponse {
+    /// 200 response
+    Status200
+    (ByteArray)
+}
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
+pub enum ItemsContentNamePutResponse {
+    /// 200 response
+    Status200
+    (String)
+}
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
 pub enum ItemsGetResponse {
     /// 200 response
     Status200
@@ -45,7 +81,16 @@ pub enum ItemsGetResponse {
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
-pub enum ItemsIdContentGetResponse {
+pub enum ItemsIdContentNameDeleteResponse {
+    /// 200 response
+    Status200
+    (String)
+}
+
+        #[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[must_use]
+#[allow(clippy::large_enum_variant)]
+pub enum ItemsIdContentNameGetResponse {
     /// 200 response
     Status200
     (ByteArray)
@@ -54,7 +99,7 @@ pub enum ItemsIdContentGetResponse {
         #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[must_use]
 #[allow(clippy::large_enum_variant)]
-pub enum ItemsIdContentPutResponse {
+pub enum ItemsIdContentNamePutResponse {
     /// 200 response
     Status200
     (String)
@@ -257,8 +302,49 @@ pub trait Api {
                 method: Method,
                 host: Host,
                 cookies: CookieJar,
+                  header_params: models::AuthorizedGetHeaderParams,
                   query_params: models::AuthorizedGetQueryParams,
                 ) -> Result<AuthorizedGetResponse, String>;
+
+
+                /// ItemsContentGet - GET /api/items/content
+                async fn items_content_get(
+                &self,
+                method: Method,
+                host: Host,
+                cookies: CookieJar,
+                ) -> Result<ItemsContentGetResponse, String>;
+
+
+                /// ItemsContentNameDelete - DELETE /api/items/content/{name}
+                async fn items_content_name_delete(
+                &self,
+                method: Method,
+                host: Host,
+                cookies: CookieJar,
+                  path_params: models::ItemsContentNameDeletePathParams,
+                ) -> Result<ItemsContentNameDeleteResponse, String>;
+
+
+                /// ItemsContentNameGet - GET /api/items/content/{name}
+                async fn items_content_name_get(
+                &self,
+                method: Method,
+                host: Host,
+                cookies: CookieJar,
+                  path_params: models::ItemsContentNameGetPathParams,
+                ) -> Result<ItemsContentNameGetResponse, String>;
+
+
+                /// ItemsContentNamePut - PUT /api/items/content/{name}
+                async fn items_content_name_put(
+                &self,
+                method: Method,
+                host: Host,
+                cookies: CookieJar,
+                  path_params: models::ItemsContentNamePutPathParams,
+                        body: Bytes,
+                ) -> Result<ItemsContentNamePutResponse, String>;
 
 
                 /// ItemsGet - GET /api/items
@@ -271,25 +357,35 @@ pub trait Api {
                 ) -> Result<ItemsGetResponse, String>;
 
 
-                /// ItemsIdContentGet - GET /api/items/{id}/content
-                async fn items_id_content_get(
+                /// ItemsIdContentNameDelete - DELETE /api/items/{id}/content/{name}
+                async fn items_id_content_name_delete(
                 &self,
                 method: Method,
                 host: Host,
                 cookies: CookieJar,
-                  path_params: models::ItemsIdContentGetPathParams,
-                ) -> Result<ItemsIdContentGetResponse, String>;
+                  path_params: models::ItemsIdContentNameDeletePathParams,
+                ) -> Result<ItemsIdContentNameDeleteResponse, String>;
 
 
-                /// ItemsIdContentPut - PUT /api/items/{id}/content
-                async fn items_id_content_put(
+                /// ItemsIdContentNameGet - GET /api/items/{id}/content/{name}
+                async fn items_id_content_name_get(
                 &self,
                 method: Method,
                 host: Host,
                 cookies: CookieJar,
-                  path_params: models::ItemsIdContentPutPathParams,
+                  path_params: models::ItemsIdContentNameGetPathParams,
+                ) -> Result<ItemsIdContentNameGetResponse, String>;
+
+
+                /// ItemsIdContentNamePut - PUT /api/items/{id}/content/{name}
+                async fn items_id_content_name_put(
+                &self,
+                method: Method,
+                host: Host,
+                cookies: CookieJar,
+                  path_params: models::ItemsIdContentNamePutPathParams,
                         body: Bytes,
-                ) -> Result<ItemsIdContentPutResponse, String>;
+                ) -> Result<ItemsIdContentNamePutResponse, String>;
 
 
                 /// ItemsIdDelete - DELETE /api/items/{id}

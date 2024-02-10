@@ -14,9 +14,14 @@ use crate::models;
 
 use crate::{Api,
      AuthorizedGetResponse,
+     ItemsContentGetResponse,
+     ItemsContentNameDeleteResponse,
+     ItemsContentNameGetResponse,
+     ItemsContentNamePutResponse,
      ItemsGetResponse,
-     ItemsIdContentGetResponse,
-     ItemsIdContentPutResponse,
+     ItemsIdContentNameDeleteResponse,
+     ItemsIdContentNameGetResponse,
+     ItemsIdContentNamePutResponse,
      ItemsIdDeleteResponse,
      ItemsIdGetResponse,
      ItemsIdPostResponse,
@@ -56,8 +61,14 @@ where
         .route("/api/items/:id",
             delete(items_id_delete::<I, A>).get(items_id_get::<I, A>).post(items_id_post::<I, A>)
         )
-        .route("/api/items/:id/content",
-            get(items_id_content_get::<I, A>).put(items_id_content_put::<I, A>)
+        .route("/api/items/:id/content/:name",
+            delete(items_id_content_name_delete::<I, A>).get(items_id_content_name_get::<I, A>).put(items_id_content_name_put::<I, A>)
+        )
+        .route("/api/items/content",
+            get(items_content_get::<I, A>)
+        )
+        .route("/api/items/content/:name",
+            delete(items_content_name_delete::<I, A>).get(items_content_name_get::<I, A>).put(items_content_name_put::<I, A>)
         )
         .route("/api/login",
             get(login_get::<I, A>)
@@ -98,14 +109,18 @@ where
 
 #[tracing::instrument(skip_all)]
 fn authorized_get_validation(
+  header_params: models::AuthorizedGetHeaderParams,
   query_params: models::AuthorizedGetQueryParams,
 ) -> std::result::Result<(
+  models::AuthorizedGetHeaderParams,
   models::AuthorizedGetQueryParams,
 ), ValidationErrors>
 {
+  header_params.validate()?;
   query_params.validate()?;
 
 Ok((
+  header_params,
   query_params,
 ))
 }
@@ -116,6 +131,7 @@ async fn authorized_get<I, A>(
   method: Method,
   host: Host,
   cookies: CookieJar,
+  headers: HeaderMap,
   Query(query_params): Query<models::AuthorizedGetQueryParams>,
  State(api_impl): State<I>,
 ) -> Result<Response, StatusCode>
@@ -123,15 +139,42 @@ where
     I: AsRef<A> + Send + Sync,
     A: Api,
 {
+    // Header parameters
+    let header_params = {
+                let header_authorization = headers.get(HeaderName::from_static("authorization"));
+
+                let header_authorization = match header_authorization {
+                    Some(v) => match header::IntoHeaderValue::<String>::try_from((*v).clone()) {
+                        Ok(result) =>
+                            Some(result.0),
+                        Err(err) => {
+                            return Response::builder()
+                                        .status(StatusCode::BAD_REQUEST)
+                                        .body(Body::from(format!("Invalid header authorization - {}", err))).map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR });
+
+                        },
+                    },
+                    None => {
+                        None
+                    }
+                };
+
+       models::AuthorizedGetHeaderParams {
+          authorization: header_authorization,
+       }
+  };
+
 
       #[allow(clippy::redundant_closure)]
       let validation = tokio::task::spawn_blocking(move || 
     authorized_get_validation(
+        header_params,
         query_params,
     )
   ).await.unwrap();
 
   let Ok((
+    header_params,
     query_params,
   )) = validation else {
     return Response::builder()
@@ -144,6 +187,7 @@ where
       method,
       host,
       cookies,
+        header_params,
         query_params,
   ).await;
 
@@ -198,6 +242,351 @@ where
 
                                                   let mut response = response.status(302);
                                                   response.body(Body::empty())
+                                                },
+                                            },
+                                            Err(_) => {
+                                                // Application code returned an error. This should not happen, as the implementation should
+                                                // return a valid response.
+                                                response.status(500).body(Body::empty())
+                                            },
+                                        };
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+
+#[tracing::instrument(skip_all)]
+fn items_content_get_validation(
+) -> std::result::Result<(
+), ValidationErrors>
+{
+
+Ok((
+))
+}
+
+/// ItemsContentGet - GET /api/items/content
+#[tracing::instrument(skip_all)]
+async fn items_content_get<I, A>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+ State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where 
+    I: AsRef<A> + Send + Sync,
+    A: Api,
+{
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move || 
+    items_content_get_validation(
+    )
+  ).await.unwrap();
+
+  let Ok((
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST); 
+  };
+
+  let result = api_impl.as_ref().items_content_get(
+      method,
+      host,
+      cookies,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                ItemsContentGetResponse::Status200
+                                                    (body)
+                                                => {
+
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_str("application/json").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(_) => {
+                                                // Application code returned an error. This should not happen, as the implementation should
+                                                // return a valid response.
+                                                response.status(500).body(Body::empty())
+                                            },
+                                        };
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+
+#[tracing::instrument(skip_all)]
+fn items_content_name_delete_validation(
+  path_params: models::ItemsContentNameDeletePathParams,
+) -> std::result::Result<(
+  models::ItemsContentNameDeletePathParams,
+), ValidationErrors>
+{
+  path_params.validate()?;
+
+Ok((
+  path_params,
+))
+}
+
+/// ItemsContentNameDelete - DELETE /api/items/content/{name}
+#[tracing::instrument(skip_all)]
+async fn items_content_name_delete<I, A>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+  Path(path_params): Path<models::ItemsContentNameDeletePathParams>,
+ State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where 
+    I: AsRef<A> + Send + Sync,
+    A: Api,
+{
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move || 
+    items_content_name_delete_validation(
+        path_params,
+    )
+  ).await.unwrap();
+
+  let Ok((
+    path_params,
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST); 
+  };
+
+  let result = api_impl.as_ref().items_content_name_delete(
+      method,
+      host,
+      cookies,
+        path_params,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                ItemsContentNameDeleteResponse::Status200
+                                                    (body)
+                                                => {
+
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_str("application/json").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(_) => {
+                                                // Application code returned an error. This should not happen, as the implementation should
+                                                // return a valid response.
+                                                response.status(500).body(Body::empty())
+                                            },
+                                        };
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+
+#[tracing::instrument(skip_all)]
+fn items_content_name_get_validation(
+  path_params: models::ItemsContentNameGetPathParams,
+) -> std::result::Result<(
+  models::ItemsContentNameGetPathParams,
+), ValidationErrors>
+{
+  path_params.validate()?;
+
+Ok((
+  path_params,
+))
+}
+
+/// ItemsContentNameGet - GET /api/items/content/{name}
+#[tracing::instrument(skip_all)]
+async fn items_content_name_get<I, A>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+  Path(path_params): Path<models::ItemsContentNameGetPathParams>,
+ State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where 
+    I: AsRef<A> + Send + Sync,
+    A: Api,
+{
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move || 
+    items_content_name_get_validation(
+        path_params,
+    )
+  ).await.unwrap();
+
+  let Ok((
+    path_params,
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST); 
+  };
+
+  let result = api_impl.as_ref().items_content_name_get(
+      method,
+      host,
+      cookies,
+        path_params,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                ItemsContentNameGetResponse::Status200
+                                                    (body)
+                                                => {
+
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_str("image/jpeg").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                  }
+
+                                                  let body_content = body.0;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(_) => {
+                                                // Application code returned an error. This should not happen, as the implementation should
+                                                // return a valid response.
+                                                response.status(500).body(Body::empty())
+                                            },
+                                        };
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+    #[derive(validator::Validate)]
+    #[allow(dead_code)]
+    struct ItemsContentNamePutBodyValidator<'a> {
+          body: &'a [u8],
+    }
+
+
+#[tracing::instrument(skip_all)]
+fn items_content_name_put_validation(
+  path_params: models::ItemsContentNamePutPathParams,
+        body: Bytes,
+) -> std::result::Result<(
+  models::ItemsContentNamePutPathParams,
+        Bytes,
+), ValidationErrors>
+{
+  path_params.validate()?;
+
+Ok((
+  path_params,
+    body,
+))
+}
+
+/// ItemsContentNamePut - PUT /api/items/content/{name}
+#[tracing::instrument(skip_all)]
+async fn items_content_name_put<I, A>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+  Path(path_params): Path<models::ItemsContentNamePutPathParams>,
+ State(api_impl): State<I>,
+          body: Bytes,
+) -> Result<Response, StatusCode>
+where 
+    I: AsRef<A> + Send + Sync,
+    A: Api,
+{
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move || 
+    items_content_name_put_validation(
+        path_params,
+          body,
+    )
+  ).await.unwrap();
+
+  let Ok((
+    path_params,
+      body,
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST); 
+  };
+
+  let result = api_impl.as_ref().items_content_name_put(
+      method,
+      host,
+      cookies,
+        path_params,
+              body,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                ItemsContentNamePutResponse::Status200
+                                                    (body)
+                                                => {
+
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_str("application/json").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
                                                 },
                                             },
                                             Err(_) => {
@@ -298,10 +687,10 @@ where
 
 
 #[tracing::instrument(skip_all)]
-fn items_id_content_get_validation(
-  path_params: models::ItemsIdContentGetPathParams,
+fn items_id_content_name_delete_validation(
+  path_params: models::ItemsIdContentNameDeletePathParams,
 ) -> std::result::Result<(
-  models::ItemsIdContentGetPathParams,
+  models::ItemsIdContentNameDeletePathParams,
 ), ValidationErrors>
 {
   path_params.validate()?;
@@ -311,13 +700,13 @@ Ok((
 ))
 }
 
-/// ItemsIdContentGet - GET /api/items/{id}/content
+/// ItemsIdContentNameDelete - DELETE /api/items/{id}/content/{name}
 #[tracing::instrument(skip_all)]
-async fn items_id_content_get<I, A>(
+async fn items_id_content_name_delete<I, A>(
   method: Method,
   host: Host,
   cookies: CookieJar,
-  Path(path_params): Path<models::ItemsIdContentGetPathParams>,
+  Path(path_params): Path<models::ItemsIdContentNameDeletePathParams>,
  State(api_impl): State<I>,
 ) -> Result<Response, StatusCode>
 where 
@@ -327,7 +716,7 @@ where
 
       #[allow(clippy::redundant_closure)]
       let validation = tokio::task::spawn_blocking(move || 
-    items_id_content_get_validation(
+    items_id_content_name_delete_validation(
         path_params,
     )
   ).await.unwrap();
@@ -341,7 +730,7 @@ where
             .map_err(|_| StatusCode::BAD_REQUEST); 
   };
 
-  let result = api_impl.as_ref().items_id_content_get(
+  let result = api_impl.as_ref().items_id_content_name_delete(
       method,
       host,
       cookies,
@@ -352,7 +741,7 @@ where
 
   let resp = match result {
                                             Ok(rsp) => match rsp {
-                                                ItemsIdContentGetResponse::Status200
+                                                ItemsIdContentNameDeleteResponse::Status200
                                                     (body)
                                                 => {
 
@@ -361,7 +750,93 @@ where
                                                     let mut response_headers = response.headers_mut().unwrap();
                                                     response_headers.insert(
                                                         CONTENT_TYPE,
-                                                        HeaderValue::from_str("image/*").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                        HeaderValue::from_str("application/json").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
+                                                  }
+
+                                                  let body_content =  tokio::task::spawn_blocking(move ||
+                                                      serde_json::to_vec(&body).map_err(|e| {
+                                                        error!(error = ?e);
+                                                        StatusCode::INTERNAL_SERVER_ERROR
+                                                      })).await.unwrap()?;
+                                                  response.body(Body::from(body_content))
+                                                },
+                                            },
+                                            Err(_) => {
+                                                // Application code returned an error. This should not happen, as the implementation should
+                                                // return a valid response.
+                                                response.status(500).body(Body::empty())
+                                            },
+                                        };
+
+                                        resp.map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })
+}
+
+
+#[tracing::instrument(skip_all)]
+fn items_id_content_name_get_validation(
+  path_params: models::ItemsIdContentNameGetPathParams,
+) -> std::result::Result<(
+  models::ItemsIdContentNameGetPathParams,
+), ValidationErrors>
+{
+  path_params.validate()?;
+
+Ok((
+  path_params,
+))
+}
+
+/// ItemsIdContentNameGet - GET /api/items/{id}/content/{name}
+#[tracing::instrument(skip_all)]
+async fn items_id_content_name_get<I, A>(
+  method: Method,
+  host: Host,
+  cookies: CookieJar,
+  Path(path_params): Path<models::ItemsIdContentNameGetPathParams>,
+ State(api_impl): State<I>,
+) -> Result<Response, StatusCode>
+where 
+    I: AsRef<A> + Send + Sync,
+    A: Api,
+{
+
+      #[allow(clippy::redundant_closure)]
+      let validation = tokio::task::spawn_blocking(move || 
+    items_id_content_name_get_validation(
+        path_params,
+    )
+  ).await.unwrap();
+
+  let Ok((
+    path_params,
+  )) = validation else {
+    return Response::builder()
+            .status(StatusCode::BAD_REQUEST)
+            .body(Body::from(validation.unwrap_err().to_string()))
+            .map_err(|_| StatusCode::BAD_REQUEST); 
+  };
+
+  let result = api_impl.as_ref().items_id_content_name_get(
+      method,
+      host,
+      cookies,
+        path_params,
+  ).await;
+
+  let mut response = Response::builder();
+
+  let resp = match result {
+                                            Ok(rsp) => match rsp {
+                                                ItemsIdContentNameGetResponse::Status200
+                                                    (body)
+                                                => {
+
+                                                  let mut response = response.status(200);
+                                                  {
+                                                    let mut response_headers = response.headers_mut().unwrap();
+                                                    response_headers.insert(
+                                                        CONTENT_TYPE,
+                                                        HeaderValue::from_str("image/jpeg").map_err(|e| { error!(error = ?e); StatusCode::INTERNAL_SERVER_ERROR })?);
                                                   }
 
                                                   let body_content = body.0;
@@ -380,17 +855,17 @@ where
 
     #[derive(validator::Validate)]
     #[allow(dead_code)]
-    struct ItemsIdContentPutBodyValidator<'a> {
+    struct ItemsIdContentNamePutBodyValidator<'a> {
           body: &'a [u8],
     }
 
 
 #[tracing::instrument(skip_all)]
-fn items_id_content_put_validation(
-  path_params: models::ItemsIdContentPutPathParams,
+fn items_id_content_name_put_validation(
+  path_params: models::ItemsIdContentNamePutPathParams,
         body: Bytes,
 ) -> std::result::Result<(
-  models::ItemsIdContentPutPathParams,
+  models::ItemsIdContentNamePutPathParams,
         Bytes,
 ), ValidationErrors>
 {
@@ -402,13 +877,13 @@ Ok((
 ))
 }
 
-/// ItemsIdContentPut - PUT /api/items/{id}/content
+/// ItemsIdContentNamePut - PUT /api/items/{id}/content/{name}
 #[tracing::instrument(skip_all)]
-async fn items_id_content_put<I, A>(
+async fn items_id_content_name_put<I, A>(
   method: Method,
   host: Host,
   cookies: CookieJar,
-  Path(path_params): Path<models::ItemsIdContentPutPathParams>,
+  Path(path_params): Path<models::ItemsIdContentNamePutPathParams>,
  State(api_impl): State<I>,
           body: Bytes,
 ) -> Result<Response, StatusCode>
@@ -419,7 +894,7 @@ where
 
       #[allow(clippy::redundant_closure)]
       let validation = tokio::task::spawn_blocking(move || 
-    items_id_content_put_validation(
+    items_id_content_name_put_validation(
         path_params,
           body,
     )
@@ -435,7 +910,7 @@ where
             .map_err(|_| StatusCode::BAD_REQUEST); 
   };
 
-  let result = api_impl.as_ref().items_id_content_put(
+  let result = api_impl.as_ref().items_id_content_name_put(
       method,
       host,
       cookies,
@@ -447,7 +922,7 @@ where
 
   let resp = match result {
                                             Ok(rsp) => match rsp {
-                                                ItemsIdContentPutResponse::Status200
+                                                ItemsIdContentNamePutResponse::Status200
                                                     (body)
                                                 => {
 

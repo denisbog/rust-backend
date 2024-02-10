@@ -1,16 +1,16 @@
 {
   "db_name": "MySQL",
-  "query": "\n    SELECT\n        id,\n        title,\n        description,\n        created,\n        updated,\n        price_type,\n        price,\n        location \"location: Point\",\n        place_description,\n        category,\n        subcategory,\n        user,\n        reserved,\n        status\n    FROM \n        items\n    order by id desc\n            ",
+  "query": "SELECT\n        items.id,\n        title,\n        description,\n        created,\n        updated,\n        price_type,\n        price,\n        location as \"location: Point\",\n        place_description,\n        category,\n        subcategory,\n        image,\n        user,\n        reserved,\n        status,\n        name,\n        email,\n        avatar\n    FROM \n        items \n    LEFT JOIN\n        users\n    ON\n        items.user = users.id\n    WHERE\n        items.id = ?",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
         "type_info": {
-          "type": "Long",
-          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | UNSIGNED | AUTO_INCREMENT",
           "char_set": 63,
-          "max_size": 11
+          "max_size": 20
         }
       },
       {
@@ -18,7 +18,7 @@
         "name": "title",
         "type_info": {
           "type": "VarString",
-          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
           "char_set": 224,
           "max_size": 1024
         }
@@ -78,7 +78,7 @@
         "name": "location: Point",
         "type_info": {
           "type": "Geometry",
-          "flags": "NOT_NULL | BLOB | BINARY | NO_DEFAULT_VALUE",
+          "flags": "NOT_NULL | MULTIPLE_KEY | BLOB | BINARY | NO_DEFAULT_VALUE",
           "char_set": 63,
           "max_size": 4294967295
         }
@@ -98,7 +98,7 @@
         "name": "category",
         "type_info": {
           "type": "VarString",
-          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "flags": "NOT_NULL | MULTIPLE_KEY | NO_DEFAULT_VALUE",
           "char_set": 224,
           "max_size": 128
         }
@@ -115,26 +115,36 @@
       },
       {
         "ordinal": 11,
+        "name": "image",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "char_set": 224,
+          "max_size": 512
+        }
+      },
+      {
+        "ordinal": 12,
         "name": "user",
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | NO_DEFAULT_VALUE",
           "char_set": 224,
-          "max_size": 64
+          "max_size": 128
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 13,
         "name": "reserved",
         "type_info": {
           "type": "VarString",
           "flags": "",
           "char_set": 224,
-          "max_size": 64
+          "max_size": 128
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 14,
         "name": "status",
         "type_info": {
           "type": "VarString",
@@ -142,10 +152,40 @@
           "char_set": 224,
           "max_size": 64
         }
+      },
+      {
+        "ordinal": 15,
+        "name": "name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NO_DEFAULT_VALUE",
+          "char_set": 224,
+          "max_size": 128
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "email",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NO_DEFAULT_VALUE",
+          "char_set": 224,
+          "max_size": 512
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "avatar",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "char_set": 224,
+          "max_size": 512
+        }
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -159,10 +199,14 @@
       true,
       false,
       false,
+      true,
       false,
+      true,
+      true,
+      true,
       true,
       true
     ]
   },
-  "hash": "4db90f0b293459ef09386d24c6c1a165c529b297c1251c1727ddcd512377a525"
+  "hash": "a2208fd748e1f75f71edee9bf4b5ab9086365b6b179d8e8ef11430f7008ad1cb"
 }

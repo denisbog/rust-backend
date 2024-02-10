@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "insert into reservations (item, user, message) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "e6de201b5ec31aabe10ac7eabd820225af5cd9040b5fd100a15dd16710d5d1f2"
+}

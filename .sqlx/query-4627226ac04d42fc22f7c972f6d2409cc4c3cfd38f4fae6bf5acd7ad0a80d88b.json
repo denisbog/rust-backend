@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "delete from items where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4627226ac04d42fc22f7c972f6d2409cc4c3cfd38f4fae6bf5acd7ad0a80d88b"
+}

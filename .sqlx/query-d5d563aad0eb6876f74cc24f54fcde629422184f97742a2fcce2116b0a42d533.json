@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "update reservations set message = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d5d563aad0eb6876f74cc24f54fcde629422184f97742a2fcce2116b0a42d533"
+}
