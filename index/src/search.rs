@@ -82,6 +82,12 @@ impl SearchEngine {
         });
     }
 
+    pub async fn close(&self) {
+        tracing::info!("stopping seach index");
+        self.monitor_commit().await;
+        tracing::info!("seach index stopped");
+    }
+
     pub fn search(&self, search: &str, results: usize, offset: usize) -> SearchResults {
         let query = self.query_parser.parse_query(search).unwrap();
 

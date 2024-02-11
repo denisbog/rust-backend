@@ -39,7 +39,7 @@ async fn main() {
         store: MemoryStore::new(),
         oauth_client: oauth_client().unwrap(),
         pool,
-        search_engine,
+        search_engine: search_engine.clone(),
     };
 
     let tracing = TraceLayer::new_for_http()
@@ -88,18 +88,27 @@ async fn main() {
     )
     .await
     .unwrap();
-    let addr = SocketAddr::from(([0, 0, 0, 0], 443));
+    let http_port = std::env::var("HTTP").unwrap_or_else(|_| "80".to_string());
+    let https_port = std::env::var("HTTPS").unwrap_or_else(|_| "443".to_string());
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], https_port.parse().unwrap()));
     tracing::debug!("listening on {}", addr);
 
     let handle = axum_server::Handle::new();
     let shutdown_future = shutdown_signal(handle.clone());
-    tokio::spawn(redirect_http_to_https(shutdown_future));
+    tokio::spawn(redirect_http_to_https(
+        http_port,
+        https_port,
+        shutdown_future,
+    ));
 
     axum_server::bind_rustls(addr, config)
         .handle(handle)
         .serve(app.into_make_service())
         .await
         .unwrap();
+
+    search_engine.close().await;
 }
 
 use anyhow::Context;
@@ -165,11 +174,11 @@ async fn shutdown_signal(handle: axum_server::Handle) {
     handle.graceful_shutdown(Some(Duration::from_secs(10)));
 }
 
-async fn redirect_http_to_https<F>(signal: F)
+async fn redirect_http_to_https<F>(http_port: String, https_port: String, signal: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
-    fn make_https(host: String, uri: Uri) -> Result<Uri, BoxError> {
+    fn make_https(source: String, target: String, host: String, uri: Uri) -> Result<Uri, BoxError> {
         let mut parts = uri.into_parts();
 
         parts.scheme = Some(axum::http::uri::Scheme::HTTPS);
@@ -178,14 +187,15 @@ where
             parts.path_and_query = Some("/".parse().unwrap());
         }
 
-        let https_host = host.replace("3000", "3443");
+        let https_host = host.replace(&source, &target);
         parts.authority = Some(https_host.parse()?);
 
         Ok(Uri::from_parts(parts)?)
     }
 
+    let source_clone = http_port.clone();
     let redirect = |Host(host): axum::extract::Host, uri: axum::http::Uri| async move {
-        match make_https(host, uri) {
+        match make_https(source_clone, https_port, host, uri) {
             Ok(uri) => Ok(axum::response::Redirect::permanent(&uri.to_string())),
             Err(error) => {
                 tracing::warn!(%error, "failed to convert URI to HTTPS");
@@ -194,7 +204,7 @@ where
         }
     };
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 80));
+    let addr = SocketAddr::from(([0, 0, 0, 0], http_port.parse().unwrap()));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     tracing::debug!("listening on {addr}");
     axum::serve(listener, redirect.into_make_service())
