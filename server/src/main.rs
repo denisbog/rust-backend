@@ -81,9 +81,9 @@ async fn main() {
 
     tracing::info!("serve web content from folder {:?}", static_web_folder);
     let app = server::new(Arc::new(server))
-        .route("/", get_service(ServeDir::new(static_web_folder)))
         .route_layer(tracing)
-        .route_layer(cors);
+        .route_layer(cors)
+        .fallback_service(get_service(ServeDir::new(static_web_folder)));
 
     let config = RustlsConfig::from_pem_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("domain.crt"),
