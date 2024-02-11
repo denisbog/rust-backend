@@ -79,7 +79,7 @@ async fn main() {
 
     let static_web_folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("static");
 
-    tracing::info!("server web content from folder {:?}", static_web_folder);
+    tracing::info!("serve web content from folder {:?}", static_web_folder);
     let app = server::new(Arc::new(server))
         .route("/", get_service(ServeDir::new(static_web_folder)))
         .route_layer(tracing)
