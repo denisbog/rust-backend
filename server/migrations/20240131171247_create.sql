@@ -47,6 +47,6 @@ CREATE EVENT removeExpiredReservations
     ON SCHEDULE EVERY 5 MINUTE
 DO
    DELETE FROM reservations
-    WHERE TIMESTAMPDIFF(MINUTE, NOW(), reservations.created) > 5;
+    WHERE TIMESTAMPDIFF(MINUTE, reservations.created, NOW()) > 5;
 
 SET GLOBAL event_scheduler = ON;
