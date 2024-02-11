@@ -88,7 +88,7 @@ async fn main() {
     )
     .await
     .unwrap();
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3443));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 443));
     tracing::debug!("listening on {}", addr);
 
     let handle = axum_server::Handle::new();
@@ -194,7 +194,7 @@ where
         }
     };
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 80));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     tracing::debug!("listening on {addr}");
     axum::serve(listener, redirect.into_make_service())

@@ -284,6 +284,11 @@ impl openapi::Api for ServerImpl {
             .await
             .unwrap()
             .rows_affected();
+
+        self.search_engine
+            .delete(path_params.id.parse::<u64>().unwrap())
+            .await;
+
         Ok(ItemsIdDeleteResponse::Status200(rows.to_string()))
     }
 
@@ -418,6 +423,25 @@ impl openapi::Api for ServerImpl {
         .unwrap()
         .rows_affected();
 
+        self.search_engine
+            .index(&DbItem {
+                id: Some(body.id.unwrap().parse::<u64>().unwrap()),
+                title: body.title,
+                description: body.description,
+                category: body.category,
+                subcategory: body.subcategory,
+                price_type: None,
+                price: None,
+                image: None,
+                created: None,
+                updated: None,
+                user: None,
+                reserved: None,
+                status: None,
+                location: None,
+                place_description: None,
+            })
+            .await;
         Ok(ItemsIdPostResponse::Status200(item_id.to_string()))
     }
 
@@ -470,10 +494,35 @@ impl openapi::Api for ServerImpl {
                 .unwrap()
                 .last_insert_id();
 
-                self.move_images(&current_user_id, &item_id.to_string())
+                if self
+                    .move_images(&current_user_id, &item_id.to_string())
                     .await
-                    .unwrap();
+                    .is_err()
+                {
+                    tracing::info!("failed moving folder from user session to item {item_id}, most probably no photos uploaded")
+                }
                 let _ = transaction.commit().await;
+
+                self.search_engine
+                    .index(&DbItem {
+                        id: Some(body.id.unwrap().parse::<u64>().unwrap()),
+                        title: body.title,
+                        description: body.description,
+                        category: body.category,
+                        subcategory: body.subcategory,
+                        price_type: None,
+                        price: None,
+                        image: None,
+                        created: None,
+                        updated: None,
+                        user: None,
+                        reserved: None,
+                        status: None,
+                        location: None,
+                        place_description: None,
+                    })
+                    .await;
+
                 Ok(ItemsPutResponse::Status200(format!("{item_id}")))
             } else {
                 Ok(ItemsPutResponse::Status200(format!(
