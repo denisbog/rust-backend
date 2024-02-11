@@ -93,7 +93,7 @@ impl openapi::Api for ServerImpl {
         let cookie = &self.store.store_session(session).await.unwrap().unwrap();
 
         Ok(openapi::AuthorizedGetResponse::Status302 {
-            location: Some("/api/items".into()),
+            location: Some("/".into()),
             set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
         })
     }

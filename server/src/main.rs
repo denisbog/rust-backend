@@ -77,8 +77,11 @@ async fn main() {
         .allow_headers(Any)
         .allow_origin(Any);
 
+    let static_web_folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("static");
+
+    tracing::info!("server web content from folder {:?}", static_web_folder);
     let app = server::new(Arc::new(server))
-        .route("/", get_service(ServeDir::new("./static")))
+        .route("/", get_service(ServeDir::new(static_web_folder)))
         .route_layer(tracing)
         .route_layer(cors);
 
