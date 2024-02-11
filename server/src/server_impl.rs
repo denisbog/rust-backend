@@ -505,7 +505,7 @@ impl openapi::Api for ServerImpl {
 
                 self.search_engine
                     .index(&DbItem {
-                        id: Some(body.id.unwrap().parse::<u64>().unwrap()),
+                        id: Some(item_id),
                         title: body.title,
                         description: body.description,
                         category: body.category,

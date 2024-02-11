@@ -19,11 +19,9 @@ pub fn get_index() -> tantivy::Index {
     let index_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index_data");
 
     if !index_dir.exists() {
-        std::fs::create_dir(&index_dir).unwrap();
+        std::fs::create_dir_all(&index_dir).unwrap();
     }
-    let dir = tantivy::directory::MmapDirectory::open(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("index_data"),
-    )
-    .unwrap();
+
+    let dir = tantivy::directory::MmapDirectory::open(index_dir).unwrap();
     Index::open_or_create(dir, get_schema()).unwrap()
 }

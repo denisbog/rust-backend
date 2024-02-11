@@ -1,8 +1,14 @@
 ### setup ec2 instance
 
-yum install mariadb105-server -y
+sudo yum install mariadb105-server -y
 sudo systemctl enable mariadb
 sudo systemctl start mariadb
+
+
+### create application folder
+
+sudo mkdir /app
+sudo chown ec2-user:ec2-user /app
 
 ### configure db
 
@@ -11,7 +17,8 @@ sudo mysql -u root
 
 ### create custom db
 
-create database items;
+CREATE DATABASE items CHARACTER SET = 'utf8' COLLATE = 'utf8_general_ci';
+-- SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;
 
 grant all on items.* to admin@localhost identified by 'admin';
 flush privileges;
