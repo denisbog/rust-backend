@@ -472,12 +472,11 @@ components:
       in: query
       schema:
         type: string
-  security:
+  securitySchemes:
     bearer:
       type: http
-      schema: bearer
+      scheme: bearer
       bearerFormat:
-  securitySchemes:
     cookieAuth:
       type: apiKey
       in: cookie
