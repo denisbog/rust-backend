@@ -1,4 +1,4 @@
-use std::{io::Cursor, sync::Arc};
+use std::{io::Cursor, path::PathBuf, sync::Arc};
 
 use async_session::{MemoryStore, SessionStore};
 use axum_extra::extract::CookieJar;
@@ -241,7 +241,10 @@ impl ServerImpl {
     }
 
     pub async fn get_images_for_item(&self, id: &str) -> Option<Vec<String>> {
-        if let Ok(mut contents) = tokio::fs::read_dir(format!("content/{}", id)).await {
+        let content = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("content")
+            .join(id);
+        if let Ok(mut contents) = tokio::fs::read_dir(content).await {
             let mut items = Vec::<String>::new();
             while let Some(content_folder) = contents.next_entry().await.unwrap() {
                 items.push(content_folder.file_name().into_string().unwrap());
@@ -257,11 +260,16 @@ impl ServerImpl {
         } else {
             file_name
         };
-        let dest = format!("content/{}/{}.jpeg", id, file_name);
+        let dest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("content")
+            .join(id)
+            .join(file_name);
 
-        tokio::fs::create_dir_all(format!("content/{}", id))
-            .await
-            .unwrap();
+        if !dest.parent().unwrap().exists() {
+            tokio::fs::create_dir_all(dest.parent().unwrap())
+                .await
+                .unwrap();
+        }
 
         let from_bytes = Cursor::new(bytes);
         let image = image::io::Reader::new(from_bytes)
@@ -276,7 +284,11 @@ impl ServerImpl {
     }
 
     pub async fn get_content(&self, id: &str, name: &str) -> Option<Vec<u8>> {
-        if let Ok(mut file) = tokio::fs::File::open(format!("./content/{}/{}", id, name)).await {
+        let content = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("content")
+            .join(id)
+            .join(name);
+        if let Ok(mut file) = tokio::fs::File::open(content).await {
             let mut contents = vec![];
             file.read_to_end(&mut contents).await.unwrap();
             Some(contents)
@@ -286,15 +298,26 @@ impl ServerImpl {
     }
 
     pub async fn delete_content(&self, id: &str, name: &str) -> Result<(), std::io::Error> {
-        tokio::fs::remove_file(format!("./content/{}/{}", id, name)).await
+        let content = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("content")
+            .join(id)
+            .join(name);
+        tokio::fs::remove_file(content).await
     }
 
     pub async fn move_images(&self, session_id: &str, id: &str) -> Result<(), std::io::Error> {
-        tokio::fs::rename(
-            format!("./content/{}", session_id),
-            format!("./content/{}", id),
-        )
-        .await
+        let session_location = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("content")
+            .join(session_id);
+
+        if session_location.exists() {
+            let item_location = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("content")
+                .join(id);
+            tokio::fs::rename(session_location, item_location).await
+        } else {
+            Ok(())
+        }
     }
     pub fn db_to_rest_user(&self, db_user: DbUser) -> User {
         User {
