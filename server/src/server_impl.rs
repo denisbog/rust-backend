@@ -114,7 +114,9 @@ impl openapi::Api for ServerImpl {
                 Err("no content found".to_string())
             }
         } else {
-            Err("no session found".to_string())
+            Ok(ItemsContentGetResponse::Status401(
+                "no session found".to_string(),
+            ))
         }
     }
 
@@ -134,7 +136,9 @@ impl openapi::Api for ServerImpl {
                 .unwrap();
             Ok(ItemsContentNameDeleteResponse::Status200("ok".to_string()))
         } else {
-            Err("no session found".to_string())
+            Ok(ItemsContentNameDeleteResponse::Status401(
+                "no session found".to_string(),
+            ))
         }
     }
 
@@ -152,10 +156,14 @@ impl openapi::Api for ServerImpl {
             if let Some(contents) = self.get_content(&current_user_id, &path_params.name).await {
                 Ok(ItemsContentNameGetResponse::Status200(ByteArray(contents)))
             } else {
-                Err("file not found".to_string())
+                Ok(ItemsContentNameGetResponse::Status401(
+                    "file not found".to_string(),
+                ))
             }
         } else {
-            Err("no session found".to_string())
+            Ok(ItemsContentNameGetResponse::Status401(
+                "no session found".to_string(),
+            ))
         }
     }
 
@@ -175,7 +183,7 @@ impl openapi::Api for ServerImpl {
                 .await;
             Ok(ItemsContentNamePutResponse::Status200("ok".to_string()))
         } else {
-            Ok(ItemsContentNamePutResponse::Status200(
+            Ok(ItemsContentNamePutResponse::Status401(
                 "no session found".to_string(),
             ))
         }
@@ -226,12 +234,18 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ItemsIdContentNameDeletePathParams,
     ) -> Result<ItemsIdContentNameDeleteResponse, String> {
-        self.delete_content(&path_params.id, &path_params.name)
-            .await
-            .unwrap();
-        Ok(ItemsIdContentNameDeleteResponse::Status200(
-            "ok".to_string(),
-        ))
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            self.delete_content(&path_params.id, &path_params.name)
+                .await
+                .unwrap();
+            Ok(ItemsIdContentNameDeleteResponse::Status200(
+                "ok".to_string(),
+            ))
+        } else {
+            Ok(ItemsIdContentNameDeleteResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ItemsIdContentGet - GET /api/items/{id}/content/{name}"]
@@ -249,7 +263,9 @@ impl openapi::Api for ServerImpl {
                 contents,
             )))
         } else {
-            Err("file not found".to_string())
+            Ok(ItemsIdContentNameGetResponse::Status401(
+                "file not found".to_string(),
+            ))
         }
     }
 
@@ -264,9 +280,15 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsIdContentNamePutPathParams,
         body: Bytes,
     ) -> Result<ItemsIdContentNamePutResponse, String> {
-        self.upload_content(&path_params.id, &path_params.name, &body)
-            .await;
-        Ok(ItemsIdContentNamePutResponse::Status200("ok".to_string()))
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            self.upload_content(&path_params.id, &path_params.name, &body)
+                .await;
+            Ok(ItemsIdContentNamePutResponse::Status200("ok".to_string()))
+        } else {
+            Ok(ItemsIdContentNamePutResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ItemsIdDelete - DELETE /api/items/{id}"]
@@ -279,17 +301,23 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ItemsIdDeletePathParams,
     ) -> Result<ItemsIdDeleteResponse, String> {
-        let rows = sqlx::query!("delete from items where id = ?", path_params.id)
-            .execute(&self.pool)
-            .await
-            .unwrap()
-            .rows_affected();
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let rows = sqlx::query!("delete from items where id = ?", path_params.id)
+                .execute(&self.pool)
+                .await
+                .unwrap()
+                .rows_affected();
 
-        self.search_engine
-            .delete(path_params.id.parse::<u64>().unwrap())
-            .await;
+            self.search_engine
+                .delete(path_params.id.parse::<u64>().unwrap())
+                .await;
 
-        Ok(ItemsIdDeleteResponse::Status200(rows.to_string()))
+            Ok(ItemsIdDeleteResponse::Status200(rows.to_string()))
+        } else {
+            Ok(ItemsIdDeleteResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ItemsIdGet - GET /api/items/{id}"]
@@ -383,11 +411,9 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsIdPostPathParams,
         body: models::Item,
     ) -> Result<ItemsIdPostResponse, String> {
-        let session = cookies.get("session").unwrap();
-        let current_user_id = self.get_session_user_id(&cookies).await;
-
-        let item_id = sqlx::query_scalar!(
-            r#"
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let item_id = sqlx::query_scalar!(
+                r#"
     UPDATE items
     SET
         title = ?,
@@ -404,45 +430,50 @@ impl openapi::Api for ServerImpl {
     WHERE
         id = ?
             "#,
-            body.title,
-            body.description,
-            body.price_type,
-            body.price,
-            body.place.as_ref().unwrap().lat,
-            body.place.as_ref().unwrap().lng,
-            body.place.as_ref().unwrap().description,
-            body.category,
-            body.subcategory,
-            current_user_id,
-            body.reserved,
-            body.status,
-            path_params.id
-        )
-        .execute(&self.pool)
-        .await
-        .unwrap()
-        .rows_affected();
+                body.title,
+                body.description,
+                body.price_type,
+                body.price,
+                body.place.as_ref().unwrap().lat,
+                body.place.as_ref().unwrap().lng,
+                body.place.as_ref().unwrap().description,
+                body.category,
+                body.subcategory,
+                current_user_id,
+                body.reserved,
+                body.status,
+                path_params.id
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap()
+            .rows_affected();
 
-        self.search_engine
-            .index(&DbItem {
-                id: Some(body.id.unwrap().parse::<u64>().unwrap()),
-                title: body.title,
-                description: body.description,
-                category: body.category,
-                subcategory: body.subcategory,
-                price_type: None,
-                price: None,
-                image: None,
-                created: None,
-                updated: None,
-                user: None,
-                reserved: None,
-                status: None,
-                location: None,
-                place_description: None,
-            })
-            .await;
-        Ok(ItemsIdPostResponse::Status200(item_id.to_string()))
+            self.search_engine
+                .index(&DbItem {
+                    id: Some(body.id.unwrap().parse::<u64>().unwrap()),
+                    title: body.title,
+                    description: body.description,
+                    category: body.category,
+                    subcategory: body.subcategory,
+                    price_type: None,
+                    price: None,
+                    image: None,
+                    created: None,
+                    updated: None,
+                    user: None,
+                    reserved: None,
+                    status: None,
+                    location: None,
+                    place_description: None,
+                })
+                .await;
+            Ok(ItemsIdPostResponse::Status200(item_id.to_string()))
+        } else {
+            Ok(ItemsIdPostResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ItemsPut - PUT /api/items"]
@@ -525,12 +556,12 @@ impl openapi::Api for ServerImpl {
 
                 Ok(ItemsPutResponse::Status200(format!("{item_id}")))
             } else {
-                Ok(ItemsPutResponse::Status200(format!(
+                Ok(ItemsPutResponse::Status401(format!(
                     "failed to get transaction"
                 )))
             }
         } else {
-            Err("no session found".to_string())
+            Ok(ItemsPutResponse::Status401("no session found".to_string()))
         }
     }
 
@@ -546,7 +577,7 @@ impl openapi::Api for ServerImpl {
         if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
             tracing::info!("user session found {current_user_id}");
             Ok(openapi::LoginGetResponse::Status302 {
-                location: Some("/api/items".into()),
+                location: Some("/".into()),
             })
         } else {
             let (auth_url, _csrf_token) = self
@@ -593,8 +624,8 @@ impl openapi::Api for ServerImpl {
                 },
             ))
         } else {
-            Ok(openapi::MyItemsGetResponse::Status200(
-                openapi::models::Items::new(Vec::new()),
+            Ok(MyItemsGetResponse::Status401(
+                "no session found".to_string(),
             ))
         }
     }
@@ -631,8 +662,8 @@ impl openapi::Api for ServerImpl {
                 },
             ))
         } else {
-            Ok(openapi::MyRelatedGetResponse::Status200(
-                openapi::models::Items::new(Vec::new()),
+            Ok(MyRelatedGetResponse::Status401(
+                "no session found".to_string(),
             ))
         }
     }
@@ -702,17 +733,17 @@ impl openapi::Api for ServerImpl {
                         rows.to_string(),
                     ))
                 } else {
-                    Ok(ReservationsIdAcceptPostResponse::Status200(
+                    Ok(ReservationsIdAcceptPostResponse::Status401(
                         "failed to begin transaction".to_string(),
                     ))
                 }
             } else {
-                Ok(ReservationsIdAcceptPostResponse::Status200(
+                Ok(ReservationsIdAcceptPostResponse::Status401(
                     "no reservtion with matching id found".to_string(),
                 ))
             }
         } else {
-            Ok(ReservationsIdAcceptPostResponse::Status200(
+            Ok(ReservationsIdAcceptPostResponse::Status401(
                 "no session found".to_string(),
             ))
         }
@@ -728,14 +759,20 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ReservationsIdDeclinePostPathParams,
     ) -> Result<ReservationsIdDeclinePostResponse, String> {
-        let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
-            .execute(&self.pool)
-            .await
-            .unwrap()
-            .rows_affected();
-        Ok(ReservationsIdDeclinePostResponse::Status200(
-            rows.to_string(),
-        ))
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
+                .execute(&self.pool)
+                .await
+                .unwrap()
+                .rows_affected();
+            Ok(ReservationsIdDeclinePostResponse::Status200(
+                rows.to_string(),
+            ))
+        } else {
+            Ok(ReservationsIdDeclinePostResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ReservationsIdDelete - DELETE /api/reservations/{id}"]
@@ -748,12 +785,18 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::ReservationsIdDeletePathParams,
     ) -> Result<ReservationsIdDeleteResponse, String> {
-        let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
-            .execute(&self.pool)
-            .await
-            .unwrap()
-            .rows_affected();
-        Ok(ReservationsIdDeleteResponse::Status200(rows.to_string()))
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
+                .execute(&self.pool)
+                .await
+                .unwrap()
+                .rows_affected();
+            Ok(ReservationsIdDeleteResponse::Status200(rows.to_string()))
+        } else {
+            Ok(ReservationsIdDeleteResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ReservationsIdGet - GET /api/reservations/{id}"]
@@ -810,17 +853,23 @@ impl openapi::Api for ServerImpl {
         path_params: models::ReservationsIdPostPathParams,
         body: models::Reservation,
     ) -> Result<ReservationsIdPostResponse, String> {
-        let rows = sqlx::query!(
-            "update reservations set message = ? where id = ?",
-            body.message,
-            path_params.id
-        )
-        .execute(&self.pool)
-        .await
-        .unwrap()
-        .rows_affected();
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let rows = sqlx::query!(
+                "update reservations set message = ? where id = ?",
+                body.message,
+                path_params.id
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap()
+            .rows_affected();
 
-        Ok(ReservationsIdPostResponse::Status200(rows.to_string()))
+            Ok(ReservationsIdPostResponse::Status200(rows.to_string()))
+        } else {
+            Ok(ReservationsIdPostResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ReservationsIdReturnPost - POST /api/reservations/{id}/return"]
@@ -848,7 +897,7 @@ impl openapi::Api for ServerImpl {
                 rows.to_string(),
             ))
         } else {
-            Ok(ReservationsIdReturnPostResponse::Status200(
+            Ok(ReservationsIdReturnPostResponse::Status401(
                 "no session found".to_string(),
             ))
         }
@@ -878,7 +927,7 @@ impl openapi::Api for ServerImpl {
 
             Ok(ReservationsPutResponse::Status200(item_id.to_string()))
         } else {
-            Ok(ReservationsPutResponse::Status200(
+            Ok(ReservationsPutResponse::Status401(
                 "no session found".to_string(),
             ))
         }
@@ -1005,16 +1054,21 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         path_params: models::UsersIdDeletePathParams,
     ) -> Result<UsersIdDeleteResponse, String> {
-        let rows_affected = sqlx::query!(
-            "delete from users where id = ?",
-            path_params.id.parse::<u64>().unwrap()
-        )
-        .execute(&self.pool)
-        .await
-        .unwrap()
-        .rows_affected();
-
-        Ok(UsersIdDeleteResponse::Status200(rows_affected.to_string()))
+        if let Some(current_user_id) = self.get_session_user_id(&cookies).await {
+            let rows_affected = sqlx::query!(
+                "delete from users where id = ?",
+                path_params.id.parse::<u64>().unwrap()
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap()
+            .rows_affected();
+            Ok(UsersIdDeleteResponse::Status200(rows_affected.to_string()))
+        } else {
+            Ok(UsersIdDeleteResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" UsersIdGet - GET /api/users/{id}"]
