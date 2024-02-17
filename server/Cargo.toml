@@ -22,9 +22,6 @@ openapi = { path = "../openapi" }
 common = { path = "../common" }
 index = { path = "../index" }
 
-async-session = "3"
-oauth2 = "4"
-anyhow = "1"
 reqwest = { version = "0", features = ["json"] }
 axum-server = { version = "0.6", features = ["tls-rustls"] }
 sqlx = { version = "0.7", features = ["runtime-tokio", "mysql", "chrono"] }
@@ -36,3 +33,4 @@ futures = "0"
 image = "0.24"
 tower = { version = "0.4" }
 tower-http = { version = "0.5", features = ["trace", "cors", "fs"] }
+jsonwebtoken = "9.2.0"

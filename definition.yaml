@@ -10,47 +10,66 @@ servers:
 security:
   - bearer: []
 paths:
-  /login:
-    get:
-      responses:
-        "302":
-          description: "302 response"
-          headers:
-            location:
-              schema:
-                type: string
-  /authorized:
-    get:
-      parameters:
-        - name: code
-          in: query
-          schema:
-            type: string
-        - name: authorization
-          in: header
-          schema:
-            type: string
-      responses:
-        "302":
-          description: "302 response"
-          headers:
-            location:
-              schema:
-                type: string
-            Set-Cookie:
-              schema:
-                type: string
-                example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
-        '401':
-          $ref: "#/components/responses/unauthorized"
+  # /login:
+  #   get:
+  #     parameters:
+  #       - name: redirect_uri
+  #         in: query
+  #         schema:
+  #           type: string
+  #     responses:
+  #       "302":
+  #         description: "302 response"
+  #         headers:
+  #           location:
+  #             schema:
+  #               type: string
+  # /authorized:
+  #   get:
+  #     parameters:
+  #       - name: grant_type
+  #         in: query
+  #         schema:
+  #           type: string
+  #       - name: code
+  #         in: query
+  #         schema:
+  #           type: string
+  #       - name: redirect_uri
+  #         in: query
+  #         schema:
+  #           type: string
+  #       - name: authorization
+  #         in: header
+  #         schema:
+  #           type: string
+  #     responses:
+  #       "302":
+  #         description: "302 response"
+  #         headers:
+  #           location:
+  #             schema:
+  #               type: string
+  #           Set-Cookie:
+  #             schema:
+  #               type: string
+  #               example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
+  #       "200":
+  #         description: "200 response"
+  #         headers:
+  #           Set-Cookie:
+  #             schema:
+  #               type: string
+  #               example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
+  #       '401':
+  #         $ref: "#/components/responses/unauthorized"
+  #       '403':
+  #         $ref: "#/components/responses/forbidden"
 
 
 
   /items:
     get:
-      security:
-        - cookieAuth: []
-      description: Returns a list of users.
       parameters:
         - $ref : "#/components/parameters/LastEvaluatedKey"
         - name: category
@@ -89,6 +108,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/items"
     put:
+      parameters:
+        - $ref : "#/components/parameters/token"
       requestBody:
         required: true
         content:
@@ -104,6 +125,8 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /items/{id}:
     get:
       parameters:
@@ -118,6 +141,7 @@ paths:
     post:
       parameters:
         - $ref : "#/components/parameters/id"
+        - $ref : "#/components/parameters/token"
       requestBody:
         required: true
         content:
@@ -133,9 +157,12 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     delete:
       parameters:
         - $ref : "#/components/parameters/id"
+        - $ref : "#/components/parameters/token"
       responses:
         "200":
           description: "200 response"
@@ -145,10 +172,13 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
   /items/content/{name}:
     get:
       parameters:
+        - $ref : "#/components/parameters/token"
         - name: name
           in: path
           required: true
@@ -164,8 +194,11 @@ paths:
                 format: binary
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     put:
       parameters:
+        - $ref : "#/components/parameters/token"
         - name: name
           in: path
           required: true
@@ -186,8 +219,11 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     delete:
       parameters:
+        - $ref : "#/components/parameters/token"
         - name: name
           in: path
           required: true
@@ -202,8 +238,12 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /items/content:
     get:
+      parameters:
+        - $ref : "#/components/parameters/token"
       responses:
         "200":
           description: "200 response"
@@ -215,6 +255,8 @@ paths:
                   type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
 
   /items/{id}/content/{name}:
@@ -236,8 +278,11 @@ paths:
                 format: binary
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     put:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
         - name: name
           in: path
@@ -259,8 +304,11 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     delete:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
         - name: name
           in: path
@@ -277,6 +325,8 @@ paths:
 
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
 
 
@@ -285,6 +335,7 @@ paths:
   /my-items:
     get:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/LastEvaluatedKey"
       responses:
         "200":
@@ -295,9 +346,12 @@ paths:
                 $ref: "#/components/schemas/items"
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /my-related:
     get:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/LastEvaluatedKey"
       responses:
         "200":
@@ -308,6 +362,8 @@ paths:
                 $ref: "#/components/schemas/items"
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
 
 
@@ -323,6 +379,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/reservations"
     put:
+      parameters:
+        - $ref : "#/components/parameters/token"
       requestBody:
         required: true
         content:
@@ -338,6 +396,8 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /reservations/{id}:
     get:
       parameters:
@@ -351,6 +411,7 @@ paths:
                 $ref: "#/components/schemas/reservation"
     post:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       requestBody:
         required: true
@@ -367,8 +428,11 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     delete:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       responses:
         "200":
@@ -380,11 +444,14 @@ paths:
 
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
 
   /reservations/{id}/accept:
     post:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       responses:
         "200":
@@ -395,9 +462,12 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /reservations/{id}/decline:
     post:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       responses:
         "200":
@@ -408,9 +478,12 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /reservations/{id}/return:
     post:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       responses:
         "200":
@@ -421,6 +494,8 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
 
   /users:
@@ -447,6 +522,7 @@ paths:
                 $ref: "#/components/schemas/user"
     post:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       responses:
         "200":
@@ -457,8 +533,11 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
     delete:
       parameters:
+        - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
       responses:
         "200":
@@ -469,6 +548,8 @@ paths:
                 type: string
         '401':
           $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
   /search:
     get:
       security:
@@ -507,6 +588,12 @@ components:
     LastEvaluatedKey:
       name: LastEvaluatedKey
       in: query
+      schema:
+        type: string
+    token:
+      name: authorization
+      required: true
+      in: header
       schema:
         type: string
   securitySchemes:
@@ -644,6 +731,12 @@ components:
   responses:
     unauthorized:
       description: 401 response
+      content:
+        application/json:
+          schema:
+            type: string
+    forbidden:
+      description: 403 response
       content:
         application/json:
           schema:

@@ -1,36 +1,43 @@
-use std::{io::Cursor, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, io::Cursor, path::PathBuf, sync::Arc};
 
-use async_session::{MemoryStore, SessionStore};
-use axum_extra::extract::CookieJar;
 use bytes::Bytes;
 use common::{DbItem, DbUser};
 use index::search::SearchEngine;
-use oauth2::basic::BasicClient;
 use openapi::models::{Item, ItemPlace, User};
 use sqlx::{FromRow, MySql, MySqlPool, QueryBuilder, Row};
 
 mod server_impl;
-use tokio::io::AsyncReadExt;
+use tokio::{io::AsyncReadExt, sync::RwLock};
 pub struct ServerImpl {
-    pub store: MemoryStore,
-    pub oauth_client: BasicClient,
+    pub cache: RwLock<HashMap<String, String>>,
     pub pool: MySqlPool,
     pub search_engine: Arc<SearchEngine>,
 }
+
 impl ServerImpl {
-    pub async fn get_session_user_id(&self, cookie: &CookieJar) -> Option<String> {
-        if let Some(session_cookie) = cookie.get("session") {
-            if let Ok(Some(user_data)) =
-                self.store.load_session(session_cookie.value().into()).await
-            {
-                let user: User = user_data.get("user").unwrap();
-                tracing::info!("user {:?}", user);
-                user.id
-            } else {
-                None
-            }
+    pub async fn get_user_id_from_token(&self, token: &String) -> Option<String> {
+        let out = self.cache.read().await.get(token).cloned();
+
+        if out.is_none() {
+            let client = reqwest::Client::new();
+            let user_data: User = client
+                .get("https://graph.facebook.com/me?fields=name,first_name,last_name,email,picture")
+                .bearer_auth(token.strip_prefix("Bearer ").unwrap())
+                .send()
+                .await
+                .unwrap()
+                .json::<User>()
+                .await
+                .unwrap();
+
+            tracing::info!("{:?}", user_data);
+            self.cache
+                .write()
+                .await
+                .insert(token.clone(), user_data.id.clone().unwrap());
+            Some(user_data.id.unwrap())
         } else {
-            None
+            out
         }
     }
 

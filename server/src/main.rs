@@ -1,5 +1,4 @@
 use ::server::ServerImpl;
-use async_session::MemoryStore;
 use axum::extract::{Host, MatchedPath};
 use axum::handler::HandlerWithoutStateExt;
 use axum::response::Response;
@@ -9,14 +8,15 @@ use axum_server::tls_rustls::RustlsConfig;
 use futures::Future;
 use http::{Method, Request, Uri};
 use index::search::SearchEngine;
-use oauth2::{basic::BasicClient, AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use openapi::server;
 use sqlx::MySqlPool;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, sync::Arc};
 use tokio::signal;
+use tokio::sync::RwLock;
 use tower_http::classify::ServerErrorsFailureClass;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::services::ServeDir;
@@ -27,17 +27,14 @@ use tracing::{Level, Span};
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let db_connection_str = std::env::var("DATABASE_URL")
-        .context("Missing DATABASE_URL!")
-        .unwrap();
+    let db_connection_str = std::env::var("DATABASE_URL").unwrap();
     let pool = MySqlPool::connect(&db_connection_str).await.unwrap();
 
     let search_engine = Arc::new(SearchEngine::default());
     SearchEngine::start(search_engine.clone()).await;
 
     let server = ServerImpl {
-        store: MemoryStore::new(),
-        oauth_client: oauth_client().unwrap(),
+        cache: RwLock::new(HashMap::new()),
         pool,
         search_engine: search_engine.clone(),
     };
@@ -114,41 +111,28 @@ async fn main() {
     search_engine.close().await;
 }
 
-use anyhow::Context;
-#[derive(Debug)]
-struct AppError(anyhow::Error);
-
-impl<E> From<E> for AppError
-where
-    E: Into<anyhow::Error>,
-{
-    fn from(err: E) -> Self {
-        Self(err.into())
-    }
-}
-
-fn oauth_client() -> Result<BasicClient, AppError> {
-    let client_id = env::var("CLIENT_ID").context("Missing CLIENT_ID!")?;
-    let client_secret = env::var("CLIENT_SECRET").context("Missing CLIENT_SECRET!")?;
-    let redirect_url = env::var("REDIRECT_URL")
-        .unwrap_or_else(|_| "https://localhost.localdomain:3443/api/authorized".to_string());
-
-    let auth_url = env::var("AUTH_URL")
-        .unwrap_or_else(|_| "https://www.facebook.com/v19.0/dialog/oauth".to_string());
-
-    let token_url = env::var("TOKEN_URL")
-        .unwrap_or_else(|_| "https://graph.facebook.com/v19.0/oauth/access_token".to_string());
-
-    Ok(BasicClient::new(
-        ClientId::new(client_id),
-        Some(ClientSecret::new(client_secret)),
-        AuthUrl::new(auth_url).context("failed to create new authorization server URL")?,
-        Some(TokenUrl::new(token_url).context("failed to create new token endpoint URL")?),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(redirect_url).context("failed to create new redirection URL")?,
-    ))
-}
+// fn oauth_client() -> Result<BasicClient, AppError> {
+//     let client_id = env::var("CLIENT_ID").context("Missing CLIENT_ID!")?;
+//     let client_secret = env::var("CLIENT_SECRET").context("Missing CLIENT_SECRET!")?;
+//     let redirect_url = env::var("REDIRECT_URL")
+//         .unwrap_or_else(|_| "https://localhost.localdomain:3443/api/authorized".to_string());
+//
+//     let auth_url = env::var("AUTH_URL")
+//         .unwrap_or_else(|_| "https://www.facebook.com/v19.0/dialog/oauth".to_string());
+//
+//     let token_url = env::var("TOKEN_URL")
+//         .unwrap_or_else(|_| "https://graph.facebook.com/v19.0/oauth/access_token".to_string());
+//
+//     Ok(BasicClient::new(
+//         ClientId::new(client_id),
+//         Some(ClientSecret::new(client_secret)),
+//         AuthUrl::new(auth_url).context("failed to create new authorization server URL")?,
+//         Some(TokenUrl::new(token_url).context("failed to create new token endpoint URL")?),
+//     )
+//     .set_redirect_uri(
+//         RedirectUrl::new(redirect_url).context("failed to create new redirection URL")?,
+//     ))
+// }
 
 async fn shutdown_signal(handle: axum_server::Handle) {
     let ctrl_c = async {
