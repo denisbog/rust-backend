@@ -1,4 +1,5 @@
 use ::server::ServerImpl;
+use async_session::MemoryStore;
 use axum::extract::{Host, MatchedPath};
 use axum::handler::HandlerWithoutStateExt;
 use axum::response::Response;
@@ -6,6 +7,7 @@ use axum::routing::get_service;
 use axum::BoxError;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::Future;
+use http::header::{AUTHORIZATION, COOKIE};
 use http::{Method, Request, Uri};
 use index::search::SearchEngine;
 use openapi::server;
@@ -18,7 +20,7 @@ use std::{env, sync::Arc};
 use tokio::signal;
 use tokio::sync::RwLock;
 use tower_http::classify::ServerErrorsFailureClass;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 use tracing::{Level, Span};
@@ -34,6 +36,8 @@ async fn main() {
     SearchEngine::start(search_engine.clone()).await;
 
     let server = ServerImpl {
+        store: MemoryStore::new(),
+        oauth_client: ServerImpl::oauth_client().unwrap(),
         cache: RwLock::new(HashMap::new()),
         pool,
         search_engine: search_engine.clone(),
@@ -71,8 +75,13 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers(Any)
-        .allow_origin(Any);
+        .allow_headers([AUTHORIZATION, COOKIE])
+        .allow_origin([
+            "https://localhost:3000".parse().unwrap(),
+            "https://example.com:3000".parse().unwrap(),
+            "https://rest.com:3443".parse().unwrap(),
+        ])
+        .allow_credentials(true);
 
     let static_web_folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("static");
 
@@ -110,29 +119,6 @@ async fn main() {
 
     search_engine.close().await;
 }
-
-// fn oauth_client() -> Result<BasicClient, AppError> {
-//     let client_id = env::var("CLIENT_ID").context("Missing CLIENT_ID!")?;
-//     let client_secret = env::var("CLIENT_SECRET").context("Missing CLIENT_SECRET!")?;
-//     let redirect_url = env::var("REDIRECT_URL")
-//         .unwrap_or_else(|_| "https://localhost.localdomain:3443/api/authorized".to_string());
-//
-//     let auth_url = env::var("AUTH_URL")
-//         .unwrap_or_else(|_| "https://www.facebook.com/v19.0/dialog/oauth".to_string());
-//
-//     let token_url = env::var("TOKEN_URL")
-//         .unwrap_or_else(|_| "https://graph.facebook.com/v19.0/oauth/access_token".to_string());
-//
-//     Ok(BasicClient::new(
-//         ClientId::new(client_id),
-//         Some(ClientSecret::new(client_secret)),
-//         AuthUrl::new(auth_url).context("failed to create new authorization server URL")?,
-//         Some(TokenUrl::new(token_url).context("failed to create new token endpoint URL")?),
-//     )
-//     .set_redirect_uri(
-//         RedirectUrl::new(redirect_url).context("failed to create new redirection URL")?,
-//     ))
-// }
 
 async fn shutdown_signal(handle: axum_server::Handle) {
     let ctrl_c = async {

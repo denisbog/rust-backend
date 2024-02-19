@@ -140,15 +140,7 @@ async fn copy_image(id: u64, item: &Item) -> String {
         println!("issue while creating destination folder, skip creation, continue with copy");
     }
 
-    let image_name = item
-        .images
-        .as_ref()
-        .unwrap()
-        .iter()
-        .cloned()
-        .next()
-        .unwrap()
-        .clone();
+    let image_name = item.images.as_ref().unwrap().iter().next().unwrap();
 
     let image_name = image_name.rsplit_once('/').unwrap().1;
 

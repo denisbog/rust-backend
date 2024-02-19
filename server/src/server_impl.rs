@@ -1,13 +1,11 @@
+use std::ops::Add;
 use std::u64;
 
-use async_trait::async_trait;
-use openapi::ItemsContentGetResponse;
-use openapi::ItemsContentNameDeleteResponse;
-use openapi::ItemsContentNameGetResponse;
-use openapi::ItemsContentNamePutResponse;
-use openapi::ItemsIdContentNameDeleteResponse;
-
 use crate::ServerImpl;
+use ::chrono::Duration;
+use async_session::Session;
+use async_session::SessionStore;
+use async_trait::async_trait;
 use axum::extract::Host;
 use axum_extra::extract::CookieJar;
 use bytes::Bytes;
@@ -15,6 +13,8 @@ use common::DbItem;
 use common::DbUser;
 use common::Point;
 use http::Method;
+use oauth2::reqwest::async_http_client;
+use oauth2::TokenResponse;
 use openapi::models::Item;
 use openapi::models::ItemPlace;
 use openapi::models::Reservation;
@@ -22,6 +22,12 @@ use openapi::models::Reservations;
 use openapi::models::Users;
 use openapi::models::{self, User};
 use openapi::types::ByteArray;
+use openapi::AuthorizedGetResponse;
+use openapi::ItemsContentGetResponse;
+use openapi::ItemsContentNameDeleteResponse;
+use openapi::ItemsContentNameGetResponse;
+use openapi::ItemsContentNamePutResponse;
+use openapi::ItemsIdContentNameDeleteResponse;
 use openapi::ItemsIdContentNameGetResponse;
 use openapi::ItemsIdContentNamePutResponse;
 use openapi::SearchGetResponse;
@@ -34,74 +40,113 @@ use openapi::{
     UsersIdDeleteResponse, UsersIdGetResponse, UsersIdPostResponse,
 };
 
+use oauth2::AuthorizationCode;
+use sqlx::types::chrono;
+
 #[allow(unused_variables)]
 #[async_trait]
 impl openapi::Api for ServerImpl {
-    // #[doc = r" AuthorizedGet - GET /api/authorized"]
-    // #[must_use]
-    // #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
-    // async fn authorized_get(
-    //     &self,
-    //     method: Method,
-    //     host: Host,
-    //     cookies: CookieJar,
-    //     header_params: models::AuthorizedGetHeaderParams,
-    //     query_params: models::AuthorizedGetQueryParams,
-    // ) -> Result<AuthorizedGetResponse, String> {
-    //     let token = if header_params.authorization.is_none() {
-    //         tracing::info!("code {}", query_params.code.clone().unwrap());
-    //
-    //         self.oauth_client
-    //             .exchange_code(AuthorizationCode::new(query_params.code.unwrap()))
-    //             .request_async(async_http_client)
-    //             .await
-    //             .context("failed in sending request request to authorization server")
-    //             .unwrap()
-    //             .access_token()
-    //             .secret()
-    //             .to_owned()
-    //     } else {
-    //         header_params
-    //             .authorization
-    //             .unwrap()
-    //             .strip_prefix("Bearer ")
-    //             .unwrap()
-    //             .to_string()
-    //     };
-    //
-    //     let client = reqwest::Client::new();
-    //     let user_data: User = client
-    //         .get("https://graph.facebook.com/v19.0/me?fields=name,first_name,last_name,email,picture")
-    //         .bearer_auth(token)
-    //         .send()
-    //         .await
-    //         .context("failed in sending request to target Url")
-    //         .unwrap()
-    //         .json::<User>()
-    //         .await
-    //         .context("failed to deserialize response as JSON")
-    //         .unwrap();
-    //
-    //     let mut session = Session::new();
-    //     session.insert("user", &user_data).unwrap();
-    //
-    //     self.check_and_import_user_if_required(&user_data).await;
-    //
-    //     // Store session and get corresponding cookie
-    //     let cookie = &self.store.store_session(session).await.unwrap().unwrap();
-    //
-    //     if let Some(redirect_uri) = query_params.redirect_uri {
-    //         tracing::info!("redirect_uri {}", redirect_uri);
-    //         Ok(openapi::AuthorizedGetResponse::Status302 {
-    //             location: Some(redirect_uri),
-    //             set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
-    //         })
-    //     } else {
-    //         Ok(openapi::AuthorizedGetResponse::Status200 {
-    //             set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
-    //         })
-    //     }
-    // }
+    #[doc = r" AuthorizedGet - GET /api/authorized"]
+    #[must_use]
+    #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
+    async fn authorized_get(
+        &self,
+        method: Method,
+        host: Host,
+        cookies: CookieJar,
+        header_params: models::AuthorizedGetHeaderParams,
+        query_params: models::AuthorizedGetQueryParams,
+    ) -> Result<AuthorizedGetResponse, String> {
+        let token = if header_params.authorization.is_none() {
+            self.oauth_client
+                .exchange_code(AuthorizationCode::new(query_params.code.unwrap()))
+                .request_async(async_http_client)
+                .await
+                .unwrap()
+                .access_token()
+                .secret()
+                .to_owned()
+        } else {
+            header_params
+                .authorization
+                .unwrap()
+                .strip_prefix("Bearer ")
+                .unwrap()
+                .to_string()
+        };
+
+        let client = reqwest::Client::new();
+
+        let user_json: serde_json::Value = client
+            .get("https://graph.facebook.com/me?fields=name,first_name,last_name,email,picture")
+            .bearer_auth(token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        let user_data = User {
+            avatar: Some(
+                user_json
+                    .get("picture")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("data")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("url")
+                    .unwrap()
+                    .to_string(),
+            ),
+            email: Some(user_json.get("email").unwrap().to_string()),
+            about: None,
+            id: Some(user_json.get("id").unwrap().to_string()),
+            last_login: None,
+            joined: None,
+            name: Some(user_json.get("name").unwrap().to_string()),
+        };
+
+        let mut session = Session::new();
+        session.set_expiry(chrono::Utc::now().add(Duration::days(10)));
+        session.insert("user", &user_data).unwrap();
+        self.check_and_import_user_if_required(&user_data).await;
+
+        // Store session and get corresponding cookie
+        let cookie = &self.store.store_session(session).await.unwrap().unwrap();
+        if let Some(redirect_uri) = query_params.redirect_uri {
+            tracing::info!("redirect_uri {}", redirect_uri);
+            Ok(openapi::AuthorizedGetResponse::Status302 {
+                location: Some(redirect_uri),
+                set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
+            })
+        } else {
+            Ok(openapi::AuthorizedGetResponse::Status200 {
+                set_cookie: Some(format!(
+                    "session={cookie}; SameSite=None; Secure; Path=/api; Max-Age=864000"
+                )),
+                body: format!(
+                    r#"
+<html>
+<head></head>
+<body>
+  <script>
+    window.addEventListener("message", function (event) {{
+      if (event.data.message === "requestResult") {{
+        event.source.postMessage({{"message": "deliverResult", result: {user_json} }}, "*");
+      }}
+    }});
+  </script>
+</body>
+</html>
+                "#
+                ),
+            })
+        }
+    }
 
     #[doc = r" ItemsContentGet - GET /api/items/content"]
     #[must_use]
@@ -114,7 +159,7 @@ impl openapi::Api for ServerImpl {
         header_params: models::ItemsContentGetHeaderParams,
     ) -> Result<ItemsContentGetResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             if let Some(contents) = self.get_images_for_item(&current_user_id).await {
@@ -141,7 +186,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsContentNameDeletePathParams,
     ) -> Result<ItemsContentNameDeleteResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             self.delete_content(&current_user_id, &path_params.name)
@@ -167,7 +212,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsContentNameGetPathParams,
     ) -> Result<ItemsContentNameGetResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             if let Some(contents) = self.get_content(&current_user_id, &path_params.name).await {
@@ -197,7 +242,7 @@ impl openapi::Api for ServerImpl {
         body: Bytes,
     ) -> Result<ItemsContentNamePutResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             self.upload_content(&current_user_id, &path_params.name, &body)
@@ -220,6 +265,9 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         query_params: models::ItemsGetQueryParams,
     ) -> Result<ItemsGetResponse, String> {
+        let test = cookies.get("session");
+
+        tracing::info!("test {:?}", test);
         let (items, last_evaluated_key) = self
             .get_items(
                 query_params.category,
@@ -254,7 +302,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsIdContentNameDeletePathParams,
     ) -> Result<ItemsIdContentNameDeleteResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             self.delete_content(&path_params.id, &path_params.name)
@@ -304,7 +352,7 @@ impl openapi::Api for ServerImpl {
         body: Bytes,
     ) -> Result<ItemsIdContentNamePutResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             self.upload_content(&path_params.id, &path_params.name, &body)
@@ -329,7 +377,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ItemsIdDeletePathParams,
     ) -> Result<ItemsIdDeleteResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows = sqlx::query!(
@@ -450,7 +498,7 @@ impl openapi::Api for ServerImpl {
         body: models::Item,
     ) -> Result<ItemsIdPostResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let item_id = sqlx::query_scalar!(
@@ -529,7 +577,7 @@ impl openapi::Api for ServerImpl {
         body: models::Item,
     ) -> Result<ItemsPutResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             if let Ok(mut transaction) = self.pool.begin().await {
@@ -622,7 +670,7 @@ impl openapi::Api for ServerImpl {
         query_params: models::MyItemsGetQueryParams,
     ) -> Result<MyItemsGetResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let (items, last_evaluated_key) = self
@@ -664,7 +712,7 @@ impl openapi::Api for ServerImpl {
         query_params: models::MyRelatedGetQueryParams,
     ) -> Result<MyRelatedGetResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let (items, last_evaluated_key) = self
@@ -732,7 +780,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ReservationsIdAcceptPostPathParams,
     ) -> Result<ReservationsIdAcceptPostResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let reservation = sqlx::query!(
@@ -791,7 +839,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ReservationsIdDeclinePostPathParams,
     ) -> Result<ReservationsIdDeclinePostResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
@@ -821,7 +869,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ReservationsIdDeletePathParams,
     ) -> Result<ReservationsIdDeleteResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows = sqlx::query!("delete from reservations where id = ?", path_params.id)
@@ -893,7 +941,7 @@ impl openapi::Api for ServerImpl {
         body: models::Reservation,
     ) -> Result<ReservationsIdPostResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows = sqlx::query!(
@@ -926,7 +974,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::ReservationsIdReturnPostPathParams,
     ) -> Result<ReservationsIdReturnPostResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows = sqlx::query!(
@@ -961,7 +1009,7 @@ impl openapi::Api for ServerImpl {
         body: models::Reservation,
     ) -> Result<ReservationsPutResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let item_id = sqlx::query_scalar!(
@@ -1106,7 +1154,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::UsersIdDeletePathParams,
     ) -> Result<UsersIdDeleteResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows_affected = sqlx::query!(
@@ -1155,7 +1203,7 @@ impl openapi::Api for ServerImpl {
         path_params: models::UsersIdPostPathParams,
     ) -> Result<UsersIdPostResponse, String> {
         if let Some(current_user_id) = self
-            .get_user_id_from_token(&header_params.authorization)
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
             let rows_affected = sqlx::query!("insert into users (id) values (?)", current_user_id)

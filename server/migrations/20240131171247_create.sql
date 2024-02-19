@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users
     name VARCHAR(32) NOT NULL,
     email VARCHAR(128) NOT NULL,
     about VARCHAR(1024),
-    avatar VARCHAR(128),
+    avatar VARCHAR(256),
     joined DATETIME NOT NULL DEFAULT current_timestamp,
     last_login DATETIME NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp
 );

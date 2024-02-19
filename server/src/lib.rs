@@ -1,23 +1,58 @@
-use std::{collections::HashMap, io::Cursor, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, env, io::Cursor, path::PathBuf, sync::Arc};
 
+use async_session::MemoryStore;
+use async_session::SessionStore;
+use axum_extra::extract::CookieJar;
 use bytes::Bytes;
 use common::{DbItem, DbUser};
 use index::search::SearchEngine;
+use oauth2::basic::BasicClient;
+use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use openapi::models::{Item, ItemPlace, User};
 use sqlx::{FromRow, MySql, MySqlPool, QueryBuilder, Row};
-
 mod server_impl;
 use tokio::{io::AsyncReadExt, sync::RwLock};
 pub struct ServerImpl {
+    pub store: MemoryStore,
+    pub oauth_client: BasicClient,
     pub cache: RwLock<HashMap<String, String>>,
     pub pool: MySqlPool,
     pub search_engine: Arc<SearchEngine>,
 }
 
 impl ServerImpl {
-    pub async fn get_user_id_from_token(&self, token: &String) -> Option<String> {
-        let out = self.cache.read().await.get(token).cloned();
+    async fn get_session_user_id(&self, cookie: &CookieJar) -> Option<String> {
+        if let Some(session_cookie) = cookie.get("session") {
+            if let Ok(Some(user_data)) =
+                self.store.load_session(session_cookie.value().into()).await
+            {
+                let user: User = user_data.get("user").unwrap();
+                tracing::info!("user {:?}", user);
+                user.id
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 
+    pub async fn get_user_id_from_session_fallback_to_token(
+        &self,
+        cookie: &CookieJar,
+        token: &Option<String>,
+    ) -> Option<String> {
+        if let Some(current_user_id) = self.get_session_user_id(cookie).await {
+            Some(current_user_id)
+        } else if let Some(curret_token) = token {
+            self.get_user_id_by_token(curret_token).await
+        } else {
+            None
+        }
+    }
+
+    async fn get_user_id_by_token(&self, token: &String) -> Option<String> {
+        let out = self.cache.read().await.get(token).cloned();
         if out.is_none() {
             let client = reqwest::Client::new();
             let user_data: User = client
@@ -340,5 +375,26 @@ impl ServerImpl {
                 .last_login
                 .map(|native_date_time| native_date_time.and_utc()),
         }
+    }
+
+    pub fn oauth_client() -> Result<BasicClient, String> {
+        let client_id = env::var("CLIENT_ID").unwrap();
+        let client_secret = env::var("CLIENT_SECRET").unwrap();
+        let redirect_url = env::var("REDIRECT_URL")
+            .unwrap_or_else(|_| "https://localhost:3443/api/authorized".to_string());
+
+        let auth_url = env::var("AUTH_URL")
+            .unwrap_or_else(|_| "https://www.facebook.com/dialog/oauth".to_string());
+
+        let token_url = env::var("TOKEN_URL")
+            .unwrap_or_else(|_| "https://graph.facebook.com/oauth/access_token".to_string());
+
+        Ok(BasicClient::new(
+            ClientId::new(client_id),
+            Some(ClientSecret::new(client_secret)),
+            AuthUrl::new(auth_url).unwrap(),
+            Some(TokenUrl::new(token_url).unwrap()),
+        )
+        .set_redirect_uri(RedirectUrl::new(redirect_url).unwrap()))
     }
 }

@@ -24,48 +24,55 @@ paths:
   #           location:
   #             schema:
   #               type: string
-  # /authorized:
-  #   get:
-  #     parameters:
-  #       - name: grant_type
-  #         in: query
-  #         schema:
-  #           type: string
-  #       - name: code
-  #         in: query
-  #         schema:
-  #           type: string
-  #       - name: redirect_uri
-  #         in: query
-  #         schema:
-  #           type: string
-  #       - name: authorization
-  #         in: header
-  #         schema:
-  #           type: string
-  #     responses:
-  #       "302":
-  #         description: "302 response"
-  #         headers:
-  #           location:
-  #             schema:
-  #               type: string
-  #           Set-Cookie:
-  #             schema:
-  #               type: string
-  #               example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
-  #       "200":
-  #         description: "200 response"
-  #         headers:
-  #           Set-Cookie:
-  #             schema:
-  #               type: string
-  #               example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
-  #       '401':
-  #         $ref: "#/components/responses/unauthorized"
-  #       '403':
-  #         $ref: "#/components/responses/forbidden"
-
+  /authorized:
+    get:
+      parameters:
+        - name: grant_type
+          in: query
+          schema:
+            type: string
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+        - name: access_token 
+          in: query
+          schema:
+            type: string
+        - name: authorization
+          in: header
+          schema:
+            type: string
+      responses:
+        "302":
+          description: "302 response"
+          headers:
+            location:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
+        "200":
+          description: "200 response"
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
 
 
   /items:
@@ -592,7 +599,7 @@ components:
         type: string
     token:
       name: authorization
-      required: true
+      required: false
       in: header
       schema:
         type: string
