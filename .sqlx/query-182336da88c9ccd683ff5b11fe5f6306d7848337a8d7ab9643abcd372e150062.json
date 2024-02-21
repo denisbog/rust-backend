@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "update users set phone = ? where id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "182336da88c9ccd683ff5b11fe5f6306d7848337a8d7ab9643abcd372e150062"
+}

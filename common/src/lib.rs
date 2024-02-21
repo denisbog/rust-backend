@@ -103,6 +103,7 @@ pub struct DbUser {
     pub id: Option<String>,
     pub name: Option<String>,
     pub email: Option<String>,
+    pub phone: Option<String>,
     pub about: Option<String>,
     pub avatar: Option<String>,
     pub joined: Option<NaiveDateTime>,

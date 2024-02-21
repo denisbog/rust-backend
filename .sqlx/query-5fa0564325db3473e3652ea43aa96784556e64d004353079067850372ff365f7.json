@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "select id, name, about, avatar, email, joined, last_login from users",
+  "query": "select id, name, about, avatar, email, phone, joined, last_login from users",
   "describe": {
     "columns": [
       {
@@ -40,7 +40,7 @@
           "type": "VarString",
           "flags": "",
           "char_set": 224,
-          "max_size": 512
+          "max_size": 1024
         }
       },
       {
@@ -55,6 +55,16 @@
       },
       {
         "ordinal": 5,
+        "name": "phone",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "char_set": 224,
+          "max_size": 512
+        }
+      },
+      {
+        "ordinal": 6,
         "name": "joined",
         "type_info": {
           "type": "Datetime",
@@ -64,7 +74,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "last_login",
         "type_info": {
           "type": "Datetime",
@@ -83,9 +93,10 @@
       true,
       true,
       false,
+      true,
       false,
       false
     ]
   },
-  "hash": "a84fa0d58b90d1f8954683319c60a13550cb269a77031f8a4442862e5404f8f3"
+  "hash": "5fa0564325db3473e3652ea43aa96784556e64d004353079067850372ff365f7"
 }

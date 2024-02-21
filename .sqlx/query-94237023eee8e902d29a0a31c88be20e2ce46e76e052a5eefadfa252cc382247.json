@@ -35,6 +35,16 @@
       },
       {
         "ordinal": 3,
+        "name": "phone",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "char_set": 224,
+          "max_size": 512
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "about",
         "type_info": {
           "type": "VarString",
@@ -44,17 +54,17 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "avatar",
         "type_info": {
           "type": "VarString",
           "flags": "",
           "char_set": 224,
-          "max_size": 512
+          "max_size": 1024
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "joined",
         "type_info": {
           "type": "Datetime",
@@ -64,7 +74,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "last_login",
         "type_info": {
           "type": "Datetime",
@@ -81,6 +91,7 @@
       false,
       false,
       false,
+      true,
       true,
       true,
       false,

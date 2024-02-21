@@ -103,6 +103,7 @@ impl openapi::Api for ServerImpl {
                     .to_string(),
             ),
             email: Some(user_json.get("email").unwrap().to_string()),
+            phone: None,
             about: None,
             id: Some(user_json.get("id").unwrap().to_string()),
             last_login: None,
@@ -1126,7 +1127,7 @@ impl openapi::Api for ServerImpl {
     ) -> Result<UsersGetResponse, String> {
         let db_users = sqlx::query_as!(
             DbUser,
-            "select id, name, about, avatar, email, joined, last_login from users"
+            "select id, name, about, avatar, email, phone, joined, last_login from users"
         )
         .fetch_all(&self.pool)
         .await
@@ -1201,16 +1202,21 @@ impl openapi::Api for ServerImpl {
         cookies: CookieJar,
         header_params: models::UsersIdPostHeaderParams,
         path_params: models::UsersIdPostPathParams,
+        body: models::User,
     ) -> Result<UsersIdPostResponse, String> {
         if let Some(current_user_id) = self
             .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
-            let rows_affected = sqlx::query!("insert into users (id) values (?)", current_user_id)
-                .execute(&self.pool)
-                .await
-                .unwrap()
-                .rows_affected();
+            let rows_affected = sqlx::query!(
+                "update users set phone = ? where id = ?",
+                body.phone,
+                current_user_id
+            )
+            .execute(&self.pool)
+            .await
+            .unwrap()
+            .rows_affected();
             Ok(UsersIdPostResponse::Status200(rows_affected.to_string()))
         } else {
             Ok(UsersIdPostResponse::Status401(

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users
     id VARCHAR(32) PRIMARY KEY NOT NULL,
     name VARCHAR(32) NOT NULL,
     email VARCHAR(128) NOT NULL,
+    phone VARCHAR(32),
     about VARCHAR(1024),
     avatar VARCHAR(256),
     joined DATETIME NOT NULL DEFAULT current_timestamp,

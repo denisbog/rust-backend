@@ -368,6 +368,7 @@ impl ServerImpl {
             about: db_user.about,
             avatar: db_user.avatar,
             email: db_user.email,
+            phone: db_user.phone,
             joined: db_user
                 .joined
                 .map(|native_date_time| native_date_time.and_utc()),

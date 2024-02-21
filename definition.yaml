@@ -531,6 +531,12 @@ paths:
       parameters:
         - $ref : "#/components/parameters/token"
         - $ref : "#/components/parameters/id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/user"
       responses:
         "200":
           description: "200 response"
@@ -646,6 +652,8 @@ components:
         email:
           type: string
           format: email
+        phone:
+          type: string
         joined:
           type: string
           format: date-time
