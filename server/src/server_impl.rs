@@ -100,15 +100,24 @@ impl openapi::Api for ServerImpl {
                     .unwrap()
                     .get("url")
                     .unwrap()
+                    .as_str()
+                    .unwrap()
                     .to_string(),
             ),
-            email: Some(user_json.get("email").unwrap().to_string()),
+            email: Some(
+                user_json
+                    .get("email")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            ),
             phone: None,
             about: None,
-            id: Some(user_json.get("id").unwrap().to_string()),
+            id: Some(user_json.get("id").unwrap().as_str().unwrap().to_string()),
             last_login: None,
             joined: None,
-            name: Some(user_json.get("name").unwrap().to_string()),
+            name: Some(user_json.get("name").unwrap().as_str().unwrap().to_string()),
         };
 
         let mut session = Session::new();
@@ -137,7 +146,7 @@ impl openapi::Api for ServerImpl {
   <script>
     window.addEventListener("message", function (event) {{
       if (event.data.message === "requestResult") {{
-        event.source.postMessage({{"message": "deliverResult", result: {user_json} }}, "*");
+        event.source.postMessage({{"message": "deliverResult", result: {{"me":{user_json}, "access_token": "{cookie}" }} }}, "*");
       }}
     }});
   </script>
@@ -1185,11 +1194,15 @@ impl openapi::Api for ServerImpl {
         path_params: models::UsersIdGetPathParams,
     ) -> Result<UsersIdGetResponse, String> {
         let db_user = sqlx::query_as!(DbUser, "select * from users where id = ?", path_params.id)
-            .fetch_one(&self.pool)
+            .fetch_optional(&self.pool)
             .await
             .unwrap();
-        let user = self.db_to_rest_user(db_user);
-        Ok(UsersIdGetResponse::Status200(user))
+        if let Some(db_user) = db_user {
+            let user = self.db_to_rest_user(db_user);
+            Ok(UsersIdGetResponse::Status200(user))
+        } else {
+            Ok(UsersIdGetResponse::Status200(User::new()))
+        }
     }
 
     #[doc = r" UsersIdPost - POST /api/users/{id}"]

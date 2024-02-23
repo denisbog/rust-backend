@@ -50,7 +50,7 @@ Requires=mariadb.service
 [Service]
 Type=simple
 User=ec2-user
-Environment="DATABASE_URL=mariadb://admin:admin@localhost/items" "CLIENT_ID=2967739669909794" "CLIENT_SECRET=3f5afe538ee1780803b60306ef89582f"
+Environment="DATABASE_URL=mariadb://admin:admin@localhost/items" "CLIENT_ID=739986687294200" "CLIENT_SECRET=07edcfd485f8d210c423634c53f038b9" "REDIRECT_URL=https://iadelamine.softfronts.com/api/authorized"
 ExecStart=/app/app
 [Install]
 WantedBy=multi-user.target

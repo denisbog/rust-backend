@@ -84,10 +84,11 @@ impl ServerImpl {
         if query.fetch_optional(&self.pool).await.unwrap().is_none() {
             tracing::info!("inserting new user in the database {:?}", user);
             sqlx::query!(
-                "insert into users (id, name, email) values (?, ?, ?)",
+                "insert into users (id, name, email, avatar) values (?, ?, ?, ?)",
                 user.id,
                 user.name,
-                user.email
+                user.email,
+                user.avatar
             )
             .execute(&self.pool)
             .await

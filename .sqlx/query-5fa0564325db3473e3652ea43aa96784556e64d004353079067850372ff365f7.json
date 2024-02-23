@@ -60,7 +60,7 @@
           "type": "VarString",
           "flags": "",
           "char_set": 224,
-          "max_size": 512
+          "max_size": 128
         }
       },
       {
