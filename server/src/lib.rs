@@ -64,13 +64,13 @@ impl ServerImpl {
                 .json::<User>()
                 .await
                 .unwrap();
-
-            tracing::info!("{:?}", user_data);
-            self.cache
-                .write()
-                .await
-                .insert(token.clone(), user_data.id.clone().unwrap());
-            Some(user_data.id.unwrap())
+            if let Some(id) = &user_data.id {
+                tracing::info!("{:?}", user_data);
+                self.cache.write().await.insert(token.clone(), id.clone());
+                Some(id.to_owned())
+            } else {
+                None
+            }
         } else {
             out
         }

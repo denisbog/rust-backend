@@ -23,6 +23,7 @@ use openapi::models::Users;
 use openapi::models::{self, User};
 use openapi::types::ByteArray;
 use openapi::AuthorizedGetResponse;
+use openapi::AuthorizedPostResponse;
 use openapi::ItemsContentGetResponse;
 use openapi::ItemsContentNameDeleteResponse;
 use openapi::ItemsContentNameGetResponse;
@@ -127,19 +128,19 @@ impl openapi::Api for ServerImpl {
 
         // Store session and get corresponding cookie
         let cookie = &self.store.store_session(session).await.unwrap().unwrap();
-        if let Some(redirect_uri) = query_params.redirect_uri {
-            tracing::info!("redirect_uri {}", redirect_uri);
-            Ok(openapi::AuthorizedGetResponse::Status302 {
-                location: Some(redirect_uri),
-                set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
-            })
-        } else {
-            Ok(openapi::AuthorizedGetResponse::Status200 {
-                set_cookie: Some(format!(
-                    "session={cookie}; SameSite=None; Secure; Path=/api; Max-Age=864000"
-                )),
-                body: format!(
-                    r#"
+        // if let Some(redirect_uri) = query_params.redirect_uri {
+        //     tracing::info!("redirect_uri {}", redirect_uri);
+        //     Ok(openapi::AuthorizedGetResponse::Status302 {
+        //         location: Some(redirect_uri),
+        //         set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
+        //     })
+        // } else {
+        Ok(openapi::AuthorizedGetResponse::Status200 {
+            set_cookie: Some(format!(
+                "session={cookie}; SameSite=None; Secure; Path=/api; Max-Age=864000"
+            )),
+            body: format!(
+                r#"
 <html>
 <head></head>
 <body>
@@ -153,9 +154,99 @@ impl openapi::Api for ServerImpl {
 </body>
 </html>
                 "#
-                ),
-            })
-        }
+            ),
+        })
+        // }
+    }
+
+    #[doc = r" AuthorizedPost - POST /api/authorized"]
+    #[must_use]
+    #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
+    async fn authorized_post(
+        &self,
+        method: Method,
+        host: Host,
+        cookies: CookieJar,
+        header_params: models::AuthorizedPostHeaderParams,
+        body: models::Authorized,
+    ) -> Result<AuthorizedPostResponse, String> {
+        tracing::info!("{:?}", body);
+        let token = self
+            .oauth_client
+            .exchange_code(AuthorizationCode::new(body.code.unwrap()))
+            .request_async(async_http_client)
+            .await
+            .unwrap()
+            .access_token()
+            .secret()
+            .to_owned();
+
+        let client = reqwest::Client::new();
+
+        let user_json: serde_json::Value = client
+            .get("https://graph.facebook.com/me?fields=name,first_name,last_name,email,picture")
+            .bearer_auth(token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        let user_data = User {
+            avatar: Some(
+                user_json
+                    .get("picture")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("data")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("url")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            ),
+            email: Some(
+                user_json
+                    .get("email")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            ),
+            phone: None,
+            about: None,
+            id: Some(user_json.get("id").unwrap().as_str().unwrap().to_string()),
+            last_login: None,
+            joined: None,
+            name: Some(user_json.get("name").unwrap().as_str().unwrap().to_string()),
+        };
+
+        let mut session = Session::new();
+        session.set_expiry(chrono::Utc::now().add(Duration::days(10)));
+        session.insert("user", &user_data).unwrap();
+        self.check_and_import_user_if_required(&user_data).await;
+
+        // Store session and get corresponding cookie
+        let cookie = &self.store.store_session(session).await.unwrap().unwrap();
+        // if let Some(redirect_uri) = body.redirect_uri {
+        //     tracing::info!("redirect_uri {}", redirect_uri);
+        //     Ok(openapi::AuthorizedPostResponse::Status302 {
+        //         location: Some(redirect_uri),
+        //         set_cookie: Some(format!("session={cookie}; SameSite=Lax; Path=/")),
+        //     })
+        // } else {
+        Ok(openapi::AuthorizedPostResponse::Status200 {
+            set_cookie: Some(format!(
+                "session={cookie}; SameSite=None; Secure; Path=/api; Max-Age=864000"
+            )),
+            body: format!(r#"{{"me":{user_json}, "access_token": "{cookie}" }}"#),
+        })
+        // }
     }
 
     #[doc = r" ItemsContentGet - GET /api/items/content"]
@@ -550,7 +641,7 @@ impl openapi::Api for ServerImpl {
 
             self.search_engine
                 .index(&DbItem {
-                    id: Some(body.id.unwrap().parse::<u64>().unwrap()),
+                    id: Some(path_params.id.parse::<u64>().unwrap()),
                     title: body.title,
                     description: body.description,
                     category: body.category,

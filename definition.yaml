@@ -75,6 +75,46 @@ paths:
           $ref: "#/components/responses/forbidden"
 
 
+    post:
+      parameters:
+        - name: authorization
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "#/components/schemas/authorized"
+      responses:
+        "302":
+          description: "302 response"
+          headers:
+            location:
+              schema:
+                type: string
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
+        "200":
+          description: "200 response"
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: session=abcde12345; SameSite=Lax; Path=/; HttpOnly
+          content:
+            text/html:
+              schema:
+                type: string
+        '401':
+          $ref: "#/components/responses/unauthorized"
+        '403':
+          $ref: "#/components/responses/forbidden"
+
+
   /items:
     get:
       parameters:
@@ -743,6 +783,19 @@ components:
             $ref: "#/components/schemas/user"
         LastEvaluatedKey:
           type: "string"
+    authorized:
+      type: object
+      properties:
+        grant_type:
+          type: string
+        code:
+          type: string
+        redirect_uri:
+          type: string
+        client_id:
+          type: string
+        client_secret:
+          type: string
   responses:
     unauthorized:
       description: 401 response
