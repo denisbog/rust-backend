@@ -616,6 +616,7 @@ impl openapi::Api for ServerImpl {
         subcategory = ?,
         user = ?,
         reserved = ?,
+        image = ?,
         status = ?
     WHERE
         id = ?
@@ -631,6 +632,7 @@ impl openapi::Api for ServerImpl {
                 body.subcategory,
                 current_user_id,
                 body.reserved,
+                body.image,
                 body.status,
                 path_params.id
             )

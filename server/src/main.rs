@@ -7,7 +7,7 @@ use axum::routing::get_service;
 use axum::BoxError;
 use axum_server::tls_rustls::RustlsConfig;
 use futures::Future;
-use http::header::{AUTHORIZATION, COOKIE};
+use http::header::{AUTHORIZATION, CONTENT_TYPE, COOKIE};
 use http::{Method, Request, Uri};
 use index::search::SearchEngine;
 use openapi::server;
@@ -75,7 +75,7 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers([AUTHORIZATION, COOKIE])
+        .allow_headers([AUTHORIZATION, COOKIE, CONTENT_TYPE])
         .allow_origin([
             "https://localhost:3000".parse().unwrap(),
             "https://example.com:3000".parse().unwrap(),
