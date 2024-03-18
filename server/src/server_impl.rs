@@ -31,6 +31,7 @@ use openapi::ItemsContentNamePutResponse;
 use openapi::ItemsIdContentNameDeleteResponse;
 use openapi::ItemsIdContentNameGetResponse;
 use openapi::ItemsIdContentNamePutResponse;
+use openapi::ItemsIdReservationsGetResponse;
 use openapi::SearchGetResponse;
 use openapi::{
     ItemsGetResponse, ItemsIdDeleteResponse, ItemsIdGetResponse, ItemsIdPostResponse,
@@ -1329,5 +1330,33 @@ impl openapi::Api for ServerImpl {
                 "no session found".to_string(),
             ))
         }
+    }
+
+    #[doc = r" ItemsIdReservationsGet - GET /api/items/{id}/reservations"]
+    #[must_use]
+    #[allow(clippy::type_complexity, clippy::type_repetition_in_bounds)]
+    async fn items_id_reservations_get(
+        &self,
+        method: Method,
+        host: Host,
+        cookies: CookieJar,
+        path_params: models::ItemsIdReservationsGetPathParams,
+    ) -> Result<ItemsIdReservationsGetResponse, String> {
+        let items = sqlx::query!("select reservations.id, item, message, created, name, avatar, email from reservations left join users on user = users.id where item = ?", path_params.id).fetch_all(&self.pool).await.unwrap();
+        let items = items
+            .into_iter()
+            .map(|item| Reservation {
+                id: Some(item.id.to_string()),
+                item: Some(item.item.to_string()),
+                message: Some(item.message),
+                user_name: item.name,
+                user_avatar: item.avatar,
+                user_email: item.email,
+                created: Some(item.created.and_utc()),
+            })
+            .collect::<Vec<Reservation>>();
+        Ok(ItemsIdReservationsGetResponse::Status200(
+            Reservations::new(items),
+        ))
     }
 }
