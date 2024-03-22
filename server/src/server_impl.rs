@@ -3,6 +3,7 @@ use std::u64;
 
 use crate::ServerImpl;
 use ::chrono::Duration;
+use async_session::log::info;
 use async_session::Session;
 use async_session::SessionStore;
 use async_trait::async_trait;
@@ -896,10 +897,6 @@ impl openapi::Api for ServerImpl {
             .unwrap();
             if let Some(reservation) = reservation {
                 if let Ok(mut transaction) = self.pool.begin().await {
-                    sqlx::query!("delete from reservations where id = ?", path_params.id)
-                        .execute(&mut *transaction)
-                        .await
-                        .unwrap();
                     let rows = sqlx::query!(
                         "update items set reserved = ?, status = ? where id = ?",
                         reservation.user,
@@ -910,6 +907,14 @@ impl openapi::Api for ServerImpl {
                     .await
                     .unwrap()
                     .rows_affected();
+                    if rows > 0 {
+                        sqlx::query!("delete from reservations where id = ?", path_params.id)
+                            .execute(&mut *transaction)
+                            .await
+                            .unwrap();
+                    } else {
+                        info!("no matching item found {}", reservation.item);
+                    }
                     transaction.commit().await.unwrap();
                     Ok(ReservationsIdAcceptPostResponse::Status200(
                         rows.to_string(),

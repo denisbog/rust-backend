@@ -67,6 +67,7 @@ impl ServerImpl {
             if let Some(id) = &user_data.id {
                 tracing::info!("{:?}", user_data);
                 self.cache.write().await.insert(token.clone(), id.clone());
+                self.check_and_import_user_if_required(&user_data).await;
                 Some(id.to_owned())
             } else {
                 None
