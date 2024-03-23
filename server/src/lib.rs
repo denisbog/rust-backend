@@ -9,6 +9,7 @@ use index::search::SearchEngine;
 use oauth2::basic::BasicClient;
 use oauth2::{AuthUrl, ClientId, ClientSecret, RedirectUrl, TokenUrl};
 use openapi::models::{Item, ItemPlace, User};
+use serde_json::Value;
 use sqlx::{FromRow, MySql, MySqlPool, QueryBuilder, Row};
 mod server_impl;
 use tokio::{io::AsyncReadExt, sync::RwLock};
@@ -54,16 +55,8 @@ impl ServerImpl {
     async fn get_user_id_by_token(&self, token: &String) -> Option<String> {
         let out = self.cache.read().await.get(token).cloned();
         if out.is_none() {
-            let client = reqwest::Client::new();
-            let user_data: User = client
-                .get("https://graph.facebook.com/me?fields=name,first_name,last_name,email,picture")
-                .bearer_auth(token.strip_prefix("Bearer ").unwrap())
-                .send()
-                .await
-                .unwrap()
-                .json::<User>()
-                .await
-                .unwrap();
+            let (user_data, _) =
+                Self::get_user_data_for_token(token.strip_prefix("Bearer ").unwrap()).await;
             if let Some(id) = &user_data.id {
                 tracing::info!("{:?}", user_data);
                 self.cache.write().await.insert(token.clone(), id.clone());
@@ -399,5 +392,52 @@ impl ServerImpl {
             Some(TokenUrl::new(token_url).unwrap()),
         )
         .set_redirect_uri(RedirectUrl::new(redirect_url).unwrap()))
+    }
+
+    pub async fn get_user_data_for_token(token: &str) -> (User, Value) {
+        let user_json: serde_json::Value = reqwest::Client::new()
+            .get("https://graph.facebook.com/me?fields=name,first_name,last_name,email,picture")
+            .bearer_auth(token)
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        let user_data = User {
+            avatar: Some(
+                user_json
+                    .get("picture")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("data")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("url")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            ),
+            email: Some(
+                user_json
+                    .get("email")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+            ),
+            phone: None,
+            about: None,
+            id: Some(user_json.get("id").unwrap().as_str().unwrap().to_string()),
+            last_login: None,
+            joined: None,
+            name: Some(user_json.get("name").unwrap().as_str().unwrap().to_string()),
+        };
+
+        (user_data, user_json)
     }
 }

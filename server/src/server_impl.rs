@@ -77,52 +77,7 @@ impl openapi::Api for ServerImpl {
                 .unwrap()
                 .to_string()
         };
-
-        let client = reqwest::Client::new();
-
-        let user_json: serde_json::Value = client
-            .get("https://graph.facebook.com/me?fields=name,first_name,last_name,email,picture")
-            .bearer_auth(token)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-
-        let user_data = User {
-            avatar: Some(
-                user_json
-                    .get("picture")
-                    .unwrap()
-                    .as_object()
-                    .unwrap()
-                    .get("data")
-                    .unwrap()
-                    .as_object()
-                    .unwrap()
-                    .get("url")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .to_string(),
-            ),
-            email: Some(
-                user_json
-                    .get("email")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .to_string(),
-            ),
-            phone: None,
-            about: None,
-            id: Some(user_json.get("id").unwrap().as_str().unwrap().to_string()),
-            last_login: None,
-            joined: None,
-            name: Some(user_json.get("name").unwrap().as_str().unwrap().to_string()),
-        };
-
+        let (user_data, user_json) = Self::get_user_data_for_token(&token).await;
         let mut session = Session::new();
         session.set_expiry(chrono::Utc::now().add(Duration::days(10)));
         session.insert("user", &user_data).unwrap();
