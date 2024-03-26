@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "select reservations.id, item, message, created, name, avatar, email from reservations left join users on user = users.id",
+  "query": "\n        select \n            reservations.id, item, message, reservations.created, name, avatar, email \n        from \n            reservations,\n            items\n        left join \n            users \n        on \n            user = users.id\n        where \n            item = items.id\n        and\n            items.user = ?",
   "describe": {
     "columns": [
       {
@@ -75,7 +75,7 @@
       }
     ],
     "parameters": {
-      "Right": 0
+      "Right": 1
     },
     "nullable": [
       false,
@@ -87,5 +87,5 @@
       true
     ]
   },
-  "hash": "0a2549c8a21625833037879e4ec5c039145392061e8ff80b663e9c8eda859d7d"
+  "hash": "879ac09932737b994ea875d6b7a164ce133c453da77c4b60a1c234b9ccfab395"
 }

@@ -810,22 +810,51 @@ impl openapi::Api for ServerImpl {
         method: Method,
         host: Host,
         cookies: CookieJar,
+        header_params: models::ReservationsGetHeaderParams,
         query_params: models::ReservationsGetQueryParams,
     ) -> Result<ReservationsGetResponse, String> {
-        let items = sqlx::query!("select reservations.id, item, message, created, name, avatar, email from reservations left join users on user = users.id").fetch_all(&self.pool).await.unwrap();
-        let items = items
-            .into_iter()
-            .map(|item| Reservation {
-                id: Some(item.id.to_string()),
-                item: Some(item.item.to_string()),
-                message: Some(item.message),
-                user_name: item.name,
-                user_avatar: item.avatar,
-                user_email: item.email,
-                created: Some(item.created.and_utc()),
-            })
-            .collect::<Vec<Reservation>>();
-        Ok(ReservationsGetResponse::Status200(Reservations::new(items)))
+        if let Some(current_user_id) = self
+            .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
+            .await
+        {
+            let items = sqlx::query!(
+                r#"
+        select
+            reservations.id, item, message, reservations.created, name, avatar, email
+        from
+            reservations,
+            items
+        left join
+            users
+        on
+            user = users.id
+        where
+            item = items.id
+        and
+            items.user = ?"#,
+                current_user_id
+            )
+            .fetch_all(&self.pool)
+            .await
+            .unwrap();
+            let items = items
+                .into_iter()
+                .map(|item| Reservation {
+                    id: Some(item.id.to_string()),
+                    item: Some(item.item.to_string()),
+                    message: Some(item.message),
+                    user_name: item.name,
+                    user_avatar: item.avatar,
+                    user_email: item.email,
+                    created: Some(item.created.and_utc()),
+                })
+                .collect::<Vec<Reservation>>();
+            Ok(ReservationsGetResponse::Status200(Reservations::new(items)))
+        } else {
+            Ok(ReservationsGetResponse::Status401(
+                "no session found".to_string(),
+            ))
+        }
     }
 
     #[doc = r" ReservationsIdAcceptPost - POST /api/reservations/{id}/accept"]
@@ -854,7 +883,7 @@ impl openapi::Api for ServerImpl {
                 if let Ok(mut transaction) = self.pool.begin().await {
                     let rows = sqlx::query!(
                         "update items set reserved = ?, status = ? where id = ?",
-                        reservation.user,
+                        current_user_id,
                         "rented",
                         reservation.item,
                     )
@@ -863,10 +892,14 @@ impl openapi::Api for ServerImpl {
                     .unwrap()
                     .rows_affected();
                     if rows > 0 {
-                        sqlx::query!("delete from reservations where id = ?", path_params.id)
-                            .execute(&mut *transaction)
-                            .await
-                            .unwrap();
+                        sqlx::query!(
+                            "delete from reservations where id = ? and user = ?",
+                            path_params.id,
+                            reservation.user
+                        )
+                        .execute(&mut *transaction)
+                        .await
+                        .unwrap();
                     } else {
                         info!("no matching item found {}", reservation.item);
                     }

@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "delete from reservations where id = ? and user = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a069fee5d74a86b1215fc967fd869cedb495a26f4ba4653963d10747087af081"
+}
