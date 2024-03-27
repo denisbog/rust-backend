@@ -818,20 +818,20 @@ impl openapi::Api for ServerImpl {
             .await
         {
             let items = sqlx::query!(
-                r#"
-        select
-            reservations.id, item, message, reservations.created, name, avatar, email
-        from
-            reservations,
-            items
-        left join
-            users
-        on
-            user = users.id
-        where
-            item = items.id
-        and
-            items.user = ?"#,
+                r#"select
+                        reservations.id, item, message, reservations.created, name, avatar, email
+                    from
+                        reservations
+                    join
+                        items
+                    on
+                        item = items.id
+                    left join
+                        users
+                    on
+                        reservations.user = users.id
+                    where
+                        items.user = ?"#,
                 current_user_id
             )
             .fetch_all(&self.pool)
