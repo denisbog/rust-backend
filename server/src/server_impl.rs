@@ -882,10 +882,11 @@ impl openapi::Api for ServerImpl {
             if let Some(reservation) = reservation {
                 if let Ok(mut transaction) = self.pool.begin().await {
                     let rows = sqlx::query!(
-                        "update items set reserved = ?, status = ? where id = ?",
-                        current_user_id,
+                        "update items set reserved = ?, status = ? where id = ? and user = ?",
+                        reservation.user,
                         "rented",
                         reservation.item,
+                        current_user_id,
                     )
                     .execute(&mut *transaction)
                     .await
