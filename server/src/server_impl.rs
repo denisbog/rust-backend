@@ -709,9 +709,9 @@ impl openapi::Api for ServerImpl {
 
                 Ok(ItemsPutResponse::Status200(format!("{item_id}")))
             } else {
-                Ok(ItemsPutResponse::Status401(format!(
-                    "failed to get transaction"
-                )))
+                Ok(ItemsPutResponse::Status401(
+                    "failed to get transaction".to_string(),
+                ))
             }
         } else {
             Ok(ItemsPutResponse::Status401("no session found".to_string()))
@@ -1178,8 +1178,8 @@ impl openapi::Api for ServerImpl {
                     .map(|rec| {
                         let mut item = Item::new();
                         item.id = Some(rec.id.unwrap().to_string());
-                        item.title = rec.title.clone();
-                        item.description = rec.description.clone();
+                        item.title.clone_from(&rec.title);
+                        item.description.clone_from(&rec.description);
 
                         if let Some(native_date_time) = rec.created {
                             item.created = Some(native_date_time.and_utc());
@@ -1188,7 +1188,7 @@ impl openapi::Api for ServerImpl {
                             item.updated = Some(native_date_time.and_utc());
                         }
 
-                        item.price_type = rec.price_type.clone();
+                        item.price_type.clone_from(&rec.price_type);
                         item.price = rec.price;
 
                         if let Some(coordinates) = &rec.location {
@@ -1198,13 +1198,13 @@ impl openapi::Api for ServerImpl {
                                 description: rec.place_description.clone(),
                             })
                         }
-                        item.category = rec.category.clone();
-                        item.subcategory = rec.subcategory.clone();
+                        item.category.clone_from(&rec.category);
+                        item.subcategory.clone_from(&rec.subcategory);
 
-                        item.user = rec.user.clone();
-                        item.reserved = rec.reserved.clone();
+                        item.user.clone_from(&rec.user);
+                        item.reserved.clone_from(&rec.reserved);
 
-                        item.status = rec.status.clone();
+                        item.status.clone_from(&rec.status);
                         item
                     })
                     .collect(),
