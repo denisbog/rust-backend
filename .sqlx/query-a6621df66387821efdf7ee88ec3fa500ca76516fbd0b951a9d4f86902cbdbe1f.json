@@ -1,0 +1,12 @@
+{
+  "db_name": "MySQL",
+  "query": "update items set status = NULL, reserved = NULL where id = ? and user = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a6621df66387821efdf7ee88ec3fa500ca76516fbd0b951a9d4f86902cbdbe1f"
+}

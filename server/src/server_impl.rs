@@ -1076,7 +1076,7 @@ impl openapi::Api for ServerImpl {
             .await
         {
             let rows = sqlx::query!(
-                "update items set status = NULL, reserved = NULL where id = ? and reserved = ?",
+                "update items set status = NULL, reserved = NULL where id = ? and user = ?",
                 path_params.id,
                 current_user_id
             )
