@@ -1,5 +1,4 @@
 use std::ops::Add;
-use std::u64;
 
 use crate::ServerImpl;
 use ::chrono::Duration;
@@ -1110,17 +1109,44 @@ impl openapi::Api for ServerImpl {
             .get_user_id_from_session_fallback_to_token(&cookies, &header_params.authorization)
             .await
         {
-            let item_id = sqlx::query_scalar!(
-                "insert into reservations (item, user, message) VALUES (?, ?, ?)",
-                body.item,
+            let item_id = if let Some(existing_reservation_id) = sqlx::query_scalar!(
+                r#"select
+                    id
+                from
+                    reservations
+                where
+                    user = ? and item = ?"#,
                 current_user_id,
-                body.message,
+                body.item
             )
-            .execute(&self.pool)
+            .fetch_optional(&self.pool)
             .await
             .unwrap()
-            .last_insert_id();
-
+            {
+                sqlx::query_scalar!(
+                    "update reservations set message = ? where id = ?",
+                    body.message,
+                    existing_reservation_id
+                )
+                .execute(&self.pool)
+                .await
+                .unwrap()
+                .last_insert_id();
+                existing_reservation_id
+            } else {
+                sqlx::query_scalar!(
+                    "insert into reservations (item, user, message) VALUES (?, ?, ?)",
+                    body.item,
+                    current_user_id,
+                    body.message,
+                )
+                .execute(&self.pool)
+                .await
+                .unwrap()
+                .last_insert_id()
+                .try_into()
+                .unwrap()
+            };
             Ok(ReservationsPutResponse::Status200(item_id.to_string()))
         } else {
             Ok(ReservationsPutResponse::Status401(

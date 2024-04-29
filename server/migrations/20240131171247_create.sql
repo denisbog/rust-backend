@@ -37,11 +37,11 @@ CREATE TABLE IF NOT EXISTS users
 
 CREATE TABLE IF NOT EXISTS reservations
 (
-    id INTEGER PRIMARY KEY NOT NULL AUTO_INCREMENT,
+    id BIGINT PRIMARY KEY NOT NULL AUTO_INCREMENT,
     item INTEGER NOT NULL,
     user VARCHAR(32) NOT NULL,
     message VARCHAR(128) NOT NULL,
-    created DATETIME NOT NULL DEFAULT current_timestamp
+    created DATETIME NOT NULL DEFAULT current_timestamp ON UPDATE current_timestamp
 );
 
 CREATE EVENT removeExpiredReservations

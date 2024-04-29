@@ -1,6 +1,5 @@
 use std::sync::Arc;
 use std::time::Duration;
-use std::u64;
 
 use crate::setup::get_index;
 use common::DbItem;

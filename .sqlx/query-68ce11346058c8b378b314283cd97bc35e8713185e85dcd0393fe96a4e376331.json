@@ -1,0 +1,25 @@
+{
+  "db_name": "MySQL",
+  "query": "select\n                    id\n                from\n                    reservations\n                where\n                    user = ? and item = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": {
+          "type": "LongLong",
+          "flags": "NOT_NULL | PRIMARY_KEY | AUTO_INCREMENT",
+          "char_set": 63,
+          "max_size": 20
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "68ce11346058c8b378b314283cd97bc35e8713185e85dcd0393fe96a4e376331"
+}
